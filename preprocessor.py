@@ -152,3 +152,9 @@ class Preprocessor:
     def get_parsed_paths(self, df: pd.DataFrame, start, destination: str) -> pd.Series:
         paths = self._filter_df(df, start, destination, 'finished')['path'].str.split(';')
         return pd.Series(paths.apply(self._resolve_back_clicks))
+
+    def get_link_mappings(self, df: pd.DataFrame) -> defaultdict[str, list]:
+        link_mappings = defaultdict(list)
+        for _, row in df.iterrows():
+            link_mappings[row['linkSource']].append(row['linkTarget'])
+        return link_mappings
