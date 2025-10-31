@@ -30,7 +30,9 @@ class Config:
     results_folder: str
     embeddings_folder: str
     sentence_transformers_checkpoint: str
-    input_file_articles: str 
+    input_file_articles: str
+    input_file_categories: str
+    input_file_links: str
     max_number_of_guesses_by_llm: int
     information_gain_num_bins: int
     base_branch: int
@@ -40,6 +42,7 @@ class Config:
     input_files_paths: list[InputFile] = field(default_factory=list)
 
 
+
 config = Config(
     # step 0
     header_pattern='# FORMAT:',
@@ -47,6 +50,8 @@ config = Config(
     embeddings_folder='article_emb/',
     sentence_transformers_checkpoint='sentence-transformers/all-MiniLM-L6-v2',
     input_file_articles='data/wikispeedia_paths-and-graph/articles.tsv',
+    input_file_categories='data/wikispeedia_paths-and-graph/categories.tsv',
+    input_file_links='data/wikispeedia_paths-and-graph/links.tsv',
     information_gain_num_bins=10,
     input_files_paths=[
         InputFile(source='finished', path='data/wikispeedia_paths-and-graph/paths_finished.tsv'),

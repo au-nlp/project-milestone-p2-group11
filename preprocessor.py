@@ -4,8 +4,10 @@ import csv
 import logging
 from collections import defaultdict, Counter
 
-from config_local import Config
+from sympy.integrals.meijerint_doc import category
 
+from config_local import Config
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
@@ -158,3 +160,18 @@ class Preprocessor:
         for _, row in df.iterrows():
             link_mappings[row['linkSource']].append(row['linkTarget'])
         return link_mappings
+
+    def load_data(self):
+        articles = pd.read_csv(self.config.input_file_articles, sep='\t', skiprows=12, names=['article'])
+        categories = pd.read_csv(self.config.input_file_categories, sep='\t', skiprows=12, names=['article', 'category'])
+        links = pd.read_csv(self.config.input_file_links, sep='\t', skiprows=11, names=['linkSource', 'linkTarget'])
+        articles = articles.map(urllib.parse.unquote)
+        categories = categories.map(urllib.parse.unquote)
+        links = links.map(urllib.parse.unquote)
+        return articles, categories, links
+
+    def resolve_all_parsed_paths(self, df: pd.DataFrame) -> None:
+        if(type(df['path'].iloc[0]) == list):
+            return
+        df['path'] = df['path'].str.split(';').apply(self._resolve_back_clicks)
+        df['num_hops'] = df['path'].str.len()

@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+from sympy.printing.pytorch import torch
 
 from common import IOMixin
 from config_local import Config
@@ -102,6 +104,30 @@ class Visualizer(IOMixin):
         ax.set_title('Average information gain vs progress of navigation')
         ax.set_ylabel('Average information gain')
         ax.set_xlabel('Progress of the navigation')
+        plt.tight_layout()
+        plt.show()
+        fig.savefig(self.gen_output_path(filename), dpi=300)
+
+    def visualize_semantic_space(self, filename: str, metadata:pd.DataFrame, emb_path: str):
+        embeddings = torch.load(emb_path, weights_only=True)
+        articles_df = metadata
+        embeddings_np = embeddings.detach().cpu().numpy()
+        tsne = TSNE(n_components=2, random_state=42, perplexity=5)
+        embeddings_2d = tsne.fit_transform(embeddings_np)
+        fig, ax = plt.subplots(figsize=(12, 8))
+        ax.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], s=10, color='tab:blue')
+        max_labels = 100
+        indices_to_label = np.random.choice(len(metadata), size=min(max_labels, len(metadata)), replace=False)
+
+        for i in indices_to_label:
+            ax.text(
+                embeddings_2d[i, 0] + 0.5,
+                embeddings_2d[i, 1] + 0.5,
+                s=metadata['article'].iloc[i],
+                ha='left', va='bottom', fontsize=8
+            )
+
+        ax.set_title('t-SNE visualization of article embeddings')
         plt.tight_layout()
         plt.show()
         fig.savefig(self.gen_output_path(filename), dpi=300)
