@@ -1,1 +1,59 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/hgNAtOO3)
+## Title: Evaluating Path Reasoning in Large Language Models
+
+## Abstract 
+##### Description: A 150 word description of the project idea and goals. What’s the motivation behind your project? What story would you like to tell, and why?
+This project investigates how large language models reason through navigation tasks using the Wikispeedia dataset, which contains human navigation paths from a start to a destination Wikipedia article. Using human paths, we explore how model reasoning aligns or diverges from human behaviour. The work begins with data exploration and filtering to characterise path difficulty through factors such as completion rate, semantic similarity, and category transitions. Building on this, several prompting strategies—zero-shot, few-shot, automated chain-of-thought (Auto-CoT), and tree-of-thought (ToT)—are implemented to generate model reasoning paths. The resulting outputs are analysed across success rate, path length, information gain, and semantic drift, with additional clustering used to compare human and model patterns. The goal is to uncover systematic reasoning tendencies in models and provide a grounded understanding of their strengths and limitations of structured, multi-step decision tasks compared to humans, identifying where and how model reasoning diverges from human navigation strategies.
+
+## Contributions
+##### Description: What's the contribution / novelty that you're aiming to produce.
+The novelty of the project lies in applying and evaluating new prompting strategies for reasoning-based navigation tasks. It introduces the combined use of automated chain-of-thought (Auto-CoT) and tree-of-thought (ToT) prompting for the Wikispeedia dataset, thus allowing for structured comparison between human and model navigation paths. Using this setup, the project compares reasoning patterns, path efficiency, and the semantic shifts across different prompting methods. The contribution is analytical as it identifies how the prompting methods influences how the model reasoning behaviour and where (and how) it diverge from humans.
+
+## Methods
+The project comprised of three stages: preprocessing and data exploration, prompt engineering and reasoning generation, and comparative analysis between human and model navigation.
+
+The preprocessing and exploration stage, focuses on analysing the Wikispeedia dataset to better understand the human navigation behaviour and establish an evaluation baselines. The global distributions for finished and unfinished games are compared to provide insight into completion trends across the dataset.  Navigation lengths is evaluated against the human ratings to assess how path difficulty relates to the performance. Information gain advancement along the navigatiojn pregress is measured using title embeddings to calculate the cosine similarity between articles. Categorical shifts is integrated to analyse  globally and between most common start–destination pairs, showing how categories evolve throughout navigation. Pairwise start and destination articles combinations are generated to label paths by difficulty using completion rates and performance measures. Further exploration includes, finding the most common start and end article pairs and those that are particularly challenging for humans. Together, the analysis  captures the structural and semantic patterns of the human navigation, forming the foundation for subsequent stages.
+
+In the prompt engineering stage, several reasoning setups are applied to assess the model behaviour. Four prompting strategies are implemented: baseline input–output (I/O) examples, few-shot I/O using the human paths, automated chain-of-thought (Auto-CoT), and tree-of-thought (ToT) reasoning. Auto-CoT generates intermediate reasoning steps automatically before predicting the next node, whereas ToT explores multiple reasoning branches through a breadth-first search (BFS) with heuristic selection to choose the most logical next pathj. Each model output is validated against the Wikispeedia link graph to ensure that hallucinations or cyclical paths are terminated. The experiments are conducted across a different size models, including smaller models such as Llama 3.2 1B and 3B, medium-scale models such as Llama 3 8B, and larger models suchs as gpt-oss-120b. 
+
+The final analysis stage compares human and model navigation behaviour using both quantitative and semantic evaluation. Quantitative performance metrics, including average path length, success rate, and deviation from optimal routes are used to compare THE overall performance between humans and models. Semantic analysis is performed using clustering and dimensionality reduction to visualise and compare human and model paths. Category shifts are analysed globally and pairwise for start–destination pairs to study category shifts. Semantic drifts are calculated through embedding distances between nodes in the paths, both globally and for specific start–destination pairs. Finally, we use a classifier is trained to distinguish betwwen path generated by human players and the model, to provide further insight into reasoning similarity and differences. In combination, providing a structured comparison of human and model reasoning across different prompting strategies and path difficulties.
+
+# Word Count: 676
+## Proposed timeline
+Teamwork 07/11
+
+## Organization within the team
+##### Description: A list of internal milestones up until project Milestone P3.
+
+Teamwork 07/11
+
+## Appendix 
+##### Description: not counted towards the 1000 words
+### Code organization:
+#### Main logic:
+- `main.ipynb`: Here we have the backbone of our project containing both markdown cells and code blocks. Markdowns tell a story of the whole project, while the code blocks demonstrate the results of our high-level methods, building up the project step by step.
+#### Modules:
+- `config_local.py`: The place where we can adjust the parameters of the whole analysis, from changing the saving folder of the embeddings to changing LLM API config parameters and many other things.
+- `preprocessor.py`: This file has a `Preprocessor` class, which handles all the pandas related Dataframes, meaning that we have all of the filterings and aggregations in this single class.
+- `visualizer.py`: This has a `Visualizer` class, which is responsible for all the visualizations done by matplotlib.
+- `semantic.py`: Here we have a `SemanticAnalyser` class, where we collected all of the functionalities within semantic analysis such as generating embeddings for each of the pages or calculating a naive information gain based on the cosine similarities of the embeddings.
+- `prompt.py`: `Prompt` is the high-level class residing in this file. Here we will have different prompts for all of the different prompting strategies (zero-shot I/O, few-shot I/O, auto-CoT, ToT). It also includes several `pydantic` models that define the expected structure of the LLM responses, making post-processing straightforward.
+- `agent.py`:  `Agent` class interacts with the LLM client, for testing we have used Groq, but we tend to utilize Microsoft Azure service for the final project. Basically, we are creating the different prompts with the help of `Prompt` and then run the LLM inference as well as processing the LLM result based on the prompt strategy.
+- `common.py`:  There is a single `IOMixin` class, which currently handles I/O.
+#### Miscellaneous:
+- `.env.example`: Example of the `.env` that is needed to run the main logic.
+- `.gitignore`: Python specific thorough gitignore file.
+- `.python-version`, `pyproject.toml`, `uv.lock`: uv project specific files, basically virtual environment definitions for uv.
+- `requirements.txt`: A more general list of the packages needed for running the main logic.
+#### Setting up environment:
+- With `uv`:  `uv sync` and then you should be able to run the `main.ipynb`.
+- With other python virtual environment manager: `pip install -r requirements.txt` and then you should be able to run the `main.ipynb`.
+#### Naming convention:
+- `def _method(self):` Internal methods within each of our modules, they are not called outside of the module.
+- `def high_level_method(self):` High-level methods, we call them in our main logic.
+
+### Questions for TAs (optional)
+##### Description: Add here any questions you have for us related to the proposed project.
+
+
+
+-- remove discriptive texts --
