@@ -69,4 +69,4 @@ Ruiqi Zhang:
 
 
 ### References:
-- AI tools used for both code generation and conceptually ideas (Copilot/ChatGPT).
+- AI tools used for both code generation and conceptually ideas (Copilot/ChatGPT/DeepL).
