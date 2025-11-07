@@ -4,7 +4,6 @@ import csv
 import logging
 from collections import defaultdict, Counter
 
-from sympy.integrals.meijerint_doc import category
 
 from config_local import Config
 import urllib.parse

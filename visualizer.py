@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
-from sympy.printing.pytorch import torch
+import torch
 
 from common import IOMixin
 from config_local import Config
