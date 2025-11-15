@@ -4,7 +4,6 @@ import csv
 import logging
 from collections import defaultdict, Counter
 
-
 from config_local import Config
 import urllib.parse
 
@@ -50,10 +49,10 @@ class Preprocessor:
         return pd.DataFrame(filtered_df)
 
     def _resolve_back_clicks(self, path: list):
-       return [
+        return [
            article for i, article in enumerate(path) 
            if article != '<' and (i == len(path) - 1 or path[i+1] != '<')
-       ]
+        ]
 
     def parse_input_file(self, path: str) -> pd.DataFrame | None:
         column_names, header_pattern = None, self.config.header_pattern
@@ -71,14 +70,22 @@ class Preprocessor:
         if column_names is None:
             logger.error(f"Couldn't retrieve column_names in {path}")
             return
-
-        return pd.read_csv(path, comment='#', sep='\t', names=column_names)
+        
+        df = pd.read_csv(path, comment='#', sep='\t', names=column_names)
+        try:
+            return df.map(urllib.parse.unquote)
+        except TypeError:
+            return df
 
     def get_merged_input_files(self) -> pd.DataFrame:
         # parsing input files into pd.DataFrames
         parsed_dfs = []
         for input_file in self.config.input_files_paths:
             df = self.parse_input_file(input_file.path)
+
+            if df is not None:
+                df['path'] = df['path'].apply(urllib.parse.unquote)
+
             if df is not None:
                 parsed_dfs.append((input_file.source, df))
 
@@ -116,8 +123,12 @@ class Preprocessor:
         )
         
         # divide agg_weithith_start_and_end into finished and unfinished
-        finished_paths: pd.DataFrame = agg_with_start_and_end[agg_with_start_and_end['source'] == 'finished'] # type: ignore
-        unfinished_paths: pd.DataFrame = agg_with_start_and_end[agg_with_start_and_end['source'] == 'unfinished'] # type: ignore
+        finished_paths: pd.DataFrame = (
+            agg_with_start_and_end[agg_with_start_and_end['source'] == 'finished'] # type: ignore
+        )
+        unfinished_paths: pd.DataFrame = (
+            agg_with_start_and_end[agg_with_start_and_end['source'] == 'unfinished'] # type: ignore
+        )
         
         # merge start - destination on top k start paths
         top_finished_paths = pd.merge(
@@ -128,7 +139,9 @@ class Preprocessor:
         )
         
         # filter out top 3 destinations for each of the start paths
-        top_3_finished_dest = top_finished_paths.sort_values('sample_count', ascending=False).groupby('start').head(3)
+        top_3_finished_dest = (
+                top_finished_paths.sort_values('sample_count', ascending=False).groupby('start').head(3)
+        )
         
         # selecting relevant values, later used in merge
         master_dest_list = top_3_finished_dest[['start', 'destination']]
@@ -142,7 +155,9 @@ class Preprocessor:
         )
         
         # concat the finished and unfinished entries
-        return pd.concat([top_3_finished_dest, matching_unfinished_paths]).sort_values(['start', 'source', 'destination'])
+        return pd.concat(
+            [top_3_finished_dest, matching_unfinished_paths]).sort_values(['start', 'source', 'destination']
+        )
 
     def get_hop_distribution(self, df: pd.DataFrame, start, destination: str) -> pd.Series:
         hop_distribution_df = self._filter_df(df, start, destination, 'finished').groupby(
@@ -160,17 +175,110 @@ class Preprocessor:
             link_mappings[row['linkSource']].append(row['linkTarget'])
         return link_mappings
 
-    def load_data(self):
-        articles = pd.read_csv(self.config.input_file_articles, sep='\t', skiprows=12, names=['article'])
-        categories = pd.read_csv(self.config.input_file_categories, sep='\t', skiprows=12, names=['article', 'category'])
-        links = pd.read_csv(self.config.input_file_links, sep='\t', skiprows=11, names=['linkSource', 'linkTarget'])
-        articles = articles.map(urllib.parse.unquote)
-        categories = categories.map(urllib.parse.unquote)
-        links = links.map(urllib.parse.unquote)
-        return articles, categories, links
-
-    def resolve_all_parsed_paths(self, df: pd.DataFrame) -> None:
+    def resolve_all_parsed_paths(self, df: pd.DataFrame) -> pd.DataFrame | None:
         if(type(df['path'].iloc[0]) == list):
             return
         df['path'] = df['path'].str.split(';').apply(self._resolve_back_clicks)
         df['num_hops'] = df['path'].str.len()
+        return df
+    
+    def get_clean_categories_df(self, df: pd.DataFrame, categories: pd.DataFrame) -> tuple:
+        # Only finished paths (perhaps a better idea for the salluviate plot?)
+        df_finished = df[df["source"] == "finished"].copy()
+
+        # Extract the category (final element) and create the article -> category mappings
+        article_to_cat = (
+            categories.assign(cat_short=categories["category"].str.split(".").str[-1])
+            .groupby("article")["cat_short"]
+            .apply(list)
+            .to_dict()
+        )
+
+        # Map all articles in the navigation paths to its first category 
+        # (mapping missing articles to 'unknown' as there is no category list available)
+        article_cats = [
+            article_to_cat.get(p, ["Unknown"])[0] for path in df["path"] for p in path.split(";")
+        ]
+        # For finished path (not flattened): used for the  alluviate plot
+        article_cats_finished = [
+            [article_to_cat.get(p, ["Unknown"])[0] for p in path.split(";")]for path in df_finished["path"]
+        ]
+
+        # Create dataframe using the mapped article caterogies
+        cat_df = pd.DataFrame(
+            {"category": article_cats}
+        ).value_counts().reset_index(name="count").sort_values("count", ascending=False)
+
+        # Remove missing articles
+        cat_df_clean = cat_df[cat_df["category"] != "Unknown"].reset_index(drop=True)
+        return cat_df_clean, cat_df, article_cats_finished, article_cats
+
+    def get_category_shift_df(self, article_cats: pd.DataFrame, cat_df_clean: pd.DataFrame) -> pd.DataFrame:
+        # Extract all consecitive category pairs (A → B) from the navigatins path
+        category_nav = [
+            (article_cats[i], article_cats[i + 1])
+            for i in range(len(article_cats) - 1)
+            if article_cats[i] in cat_df_clean["category"].values
+            and article_cats[i + 1] in cat_df_clean["category"].values
+        ]
+
+
+        # Count pairwise category occurences
+        cat_shift_counts = Counter(category_nav)
+
+        # Convert to df
+        cat_shift_df = pd.DataFrame(cat_shift_counts.items(), columns=["cat_move", "count"]) # type: ignore
+        # Split cat_move col
+        cat_shift_df[["from_cat", "to_cat"]] = pd.DataFrame(cat_shift_df["cat_move"].tolist(), index=cat_shift_df.index)
+        # Drop cat_move col
+        cat_shift_df = cat_shift_df.drop(columns="cat_move").sort_values("count", ascending=False).reset_index(drop=True)
+
+        # Plot the most frequent categorical shifts
+        cat_shift_df_filter = cat_shift_df.head(15)
+        return cat_shift_df_filter
+
+    def get_pairwise_category_shift_df(self, article_cats: pd.DataFrame, cat_df_clean: pd.DataFrame) -> pd.DataFrame:
+        category_nav = [
+            (article_cats[i], article_cats[i + 1])
+            for i in range(len(article_cats) - 1)
+            if article_cats[i] in cat_df_clean["category"].values
+            and article_cats[i + 1] in cat_df_clean["category"].values
+            and article_cats[i] != article_cats[i + 1]  # exclude same-category pairs
+        ]
+
+        # Count pairwise category occurences
+        cat_shift_counts = Counter(category_nav)
+
+        # Convert to df
+        cat_shift_df = pd.DataFrame(cat_shift_counts.items(), columns=["cat_move", "count"]) # type: ignore
+        # Split cat_move col
+        cat_shift_df[["from_cat", "to_cat"]] = pd.DataFrame(cat_shift_df["cat_move"].tolist(), index=cat_shift_df.index)
+        # Drop cat_move col
+        cat_shift_df = cat_shift_df.drop(columns="cat_move").sort_values("count", ascending=False).reset_index(drop=True)
+
+        # Plot the most frequent categorical shifts
+        cat_shift_df_filter = cat_shift_df.head(15)
+        return cat_shift_df_filter
+
+    def get_category_shifts_df_pairs(self, article_cats_finished: pd.DataFrame, start_cat, end_cat: str) -> pd.DataFrame:
+        # Buold the categorcal transitions along the navigation path for finished paths
+        category_pairs = [
+            # Category pairs encoding
+            (f"{a}_{i}", f"{b}_{i+1}")
+            # Ireate finished paths
+            for cats in article_cats_finished  
+            # Valid paths filter
+            if len(cats) > 2 and cats[0] == start_cat and cats[-1] == end_cat 
+            # Pairwise categories
+            for i, (a, b) in enumerate(zip(cats[:-1], cats[1:]))  
+            # Include or exclude missing categories (including chosen here to not loose granularity)
+            #if a != "Unknown" and b != "Unknown"   
+        ]
+
+        # Create df of category frequencies along navigation paths from the pairs
+        cat_shift_df_pairs = pd.DataFrame(Counter(category_pairs).items(), columns=["cat_move", "count"]) # type: ignore
+        # Split cat_move col
+        cat_shift_df_pairs[["cat_from", "cat_to"]] = pd.DataFrame(cat_shift_df_pairs["cat_move"].tolist(), index=cat_shift_df_pairs.index)
+        # Drop cat_move col
+        cat_shift_df_pairs.drop(columns="cat_move", inplace=True)
+        return cat_shift_df_pairs

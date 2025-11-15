@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 import torch
+import plotly.graph_objects as go
+import plotly.io as pio
 
 from common import IOMixin
 from config_local import Config
@@ -129,5 +131,102 @@ class Visualizer(IOMixin):
 
         ax.set_title('t-SNE visualization of article embeddings')
         plt.tight_layout()
+        plt.show()
+        fig.savefig(self.gen_output_path(filename), dpi=300)
+
+    def visualize_category_distribution_for_paths(self, df: pd.DataFrame, filename: str):
+        # Plot the 15 top categories while excluding missing categories
+        fig, _ = plt.subplots(figsize=(12, 8))
+        plt.barh(df.head(15)["category"], df.head(15)["count"])
+        plt.xlabel("Count")
+        plt.title("Global Category Distribution for Navigation Paths (Top 15)")
+        plt.gca().invert_yaxis()
+        plt.show()
+        fig.savefig(self.gen_output_path(filename), dpi=300)
+
+    def visualize_top_categorical_shifts(self, df: pd.DataFrame, filename: str):
+        # Plot the most frequent categorical shifts
+        fig, _ = plt.subplots(figsize=(12, 8))
+        plt.barh(df["from_cat"] + " -> " + df["to_cat"], df["count"])
+        plt.xlabel("Count")
+        plt.title("Most Frequent Categories Pairs Along Navigation Paths (Top 15)")
+        plt.gca().invert_yaxis()
+        plt.show()
+        fig.savefig(self.gen_output_path(filename), dpi=300)
+
+    def visualize_top_pairwise_categorical_shifts(self, df: pd.DataFrame, filename: str):
+        # Plot the most frequent categorical shifts
+        fig, _ = plt.subplots(figsize=(12, 8))
+        plt.barh(df["from_cat"] + " -> " + df["to_cat"], df["count"])
+        plt.xlabel("Count")
+        plt.title("Most Frequent Pairwise Category Shifts Along Navigation Paths (Top 15)")
+        plt.gca().invert_yaxis()
+        plt.show()
+        fig.savefig(self.gen_output_path(filename), dpi=300)
+
+    def visualize_sankey_plot(self, cat_shift_df_pairs: pd.DataFrame, filename, start_cat, end_cat: str):
+        # Sankey diagram
+        # Reference: https://plotly.com/python/sankey-diagram/
+        # Render method
+        pio.renderers.default = "notebook_connected"
+
+        # Extract unique category nodes 
+        nodes = pd.unique(cat_shift_df_pairs[["cat_from", "cat_to"]].values.ravel())
+        # remove positional suffix (e.g. country_1)
+        node_labels = [n.rsplit("_", 1)[0] for n in nodes] # type: ignore
+        # Define node indices
+        node_indices = {n: i for i, n in enumerate(nodes)}
+
+        # Build diagram
+        fig = go.Figure(go.Sankey(
+            # Nodes
+            node=dict(label=node_labels, 
+                      pad=22, 
+                      thickness=16
+                     ),
+            # Links
+            link=dict(
+                source=[node_indices[a] for a in cat_shift_df_pairs["cat_from"]],
+                target=[node_indices[b] for b in cat_shift_df_pairs["cat_to"]],
+                value=cat_shift_df_pairs["count"].tolist(),
+            )
+        ))
+
+        # Layout
+        fig.update_layout(
+            title_text=f"Categorical drift from '{start_cat}' -> '{end_cat}'",
+            height=700,
+            width=1180,
+        )
+
+        # Plot
+        fig.write_image(self.gen_output_path(filename))  # Save as static image
+        #fig.show() # Uncomment and run for an interactive sankey diagram visualization
+
+    def visualize_ratings_distribution(self, df: pd.DataFrame, filename: str):
+        fig, _ = plt.subplots(figsize=(12, 8))
+        df['rating'].hist(bins=50, alpha=0.5, label='finished', color='blue', range=(0,5))
+        plt.title('Distribution of the ratings of the finished paths')
+        plt.xlabel('Rating')
+        plt.ylabel('Number of paths')
+        plt.legend()
+        plt.show()
+        fig.savefig(self.gen_output_path(filename), dpi=300)
+
+    def visualize_duration_distribution_unfinished(self, df: pd.DataFrame, filename: str):
+        fig, _ = plt.subplots(figsize=(12, 8))
+        df[df['source'] == 'unfinished']['durationInSec'].hist(bins=50) # type: ignore
+        plt.title('Distribution of the durations of the unfinished paths')
+        plt.xlabel('Duration in seconds')
+        plt.ylabel('Number of paths')
+        plt.show()
+        fig.savefig(self.gen_output_path(filename), dpi=300)
+
+    def visualize_duration_distribution_unfinished_timeout(self, df: pd.DataFrame, filename: str):
+        fig, _ = plt.subplots(figsize=(12, 8))
+        df[(df['source'] == 'unfinished') & (df['type'] == 'timeout')]['durationInSec'].hist(bins=50) # type: ignore
+        plt.title('Distribution of the duration of the timeout paths')
+        plt.xlabel('Duration in seconds')
+        plt.ylabel('Number of paths')
         plt.show()
         fig.savefig(self.gen_output_path(filename), dpi=300)
