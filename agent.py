@@ -1,13 +1,17 @@
 import json
 import torch
+import logging
 import numpy as np
 import torch.nn.functional as F
 from groq import Groq
 from groq.types.chat.chat_completion_message import ChatCompletionMessage
-from dataclasses import asdict
+from openai import OpenAI
 
 from prompt import Prompt
 from config_local import Config
+
+
+logger = logging.getLogger(__name__)
 
 
 class Agent:
@@ -17,28 +21,46 @@ class Agent:
         self.llm_config = config.llm_config
         self.base_branch = config.base_branch
         self.max_depth = config.max_depth
-        self.api_key = config.groq_api_key
+        self.debug = config.debug
 
-        self.client = self._create_client()
+        if self.debug:
+            self.client = Groq(api_key=config.groq_api_key)
+        else:
+            self.client = OpenAI(
+                base_url=config.digital_ocean_url,
+                api_key=config.digital_ocean_api_key,
+            )
+
+        self.generate_func = self.client.chat.completions.create
         self.prompt = Prompt(config=config)
-
-    def _create_client(self) -> Groq:
-        return Groq(api_key=self.api_key)
-
     
     def _ask_llm(self, prompt: str) -> ChatCompletionMessage:
-        return self.client.chat.completions.create(
-            **self.prompt.get_config(), messages=[{'role': 'user', 'content': prompt}]
+        return self.generate_func(
+            **self.prompt.get_config(self.debug), messages=[{'role': 'user', 'content': prompt}]
         ).choices[0].message
         
-    def _parse_response(self, text: ChatCompletionMessage) -> list[tuple[str, int]]:
+    def _parse_response(
+            self, 
+            text: ChatCompletionMessage
+    ) -> list[tuple[str, int]] | None:
         content = text.content or '{}'
-        parsed_json = json.loads(content)
+
+        try:
+            parsed_json = json.loads(content)
+        except json.JSONDecodeError:
+            logger.error(f'LLM response is not a valid JSON: {content}')
+            return None
+
         return [
             (guess['next_page'], guess['rating']) for guess in parsed_json['candidates']
         ]
         
-    def _generate_and_score(self, current: str, goal: str, valid_links: list[str]) -> list[tuple[str, int]]:
+    def _generate_and_score(
+            self, 
+            current: str, 
+            goal: str, 
+            valid_links: list[str]
+    ) -> list[tuple[str, int]] | None:
         prompt = self.prompt.generate_prompt(current, goal, valid_links)
         text = self._ask_llm(prompt)
         return self._parse_response(text)

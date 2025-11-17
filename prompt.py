@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from pydantic import BaseModel, Field, conlist
 
@@ -20,8 +21,8 @@ class Prompt:
             ) # type: ignore
         return NavigationStep.model_json_schema()
 
-    def get_config(self) -> dict:
-        return {
+    def get_config(self, debug: bool) -> dict:
+        base_config = {
             'model': self.config.llm_config.model,
             'max_completion_tokens': self.config.llm_config.max_completion_tokens,
             'reasoning_effort': self.config.llm_config.reasoning_effort,
@@ -30,13 +31,33 @@ class Prompt:
             'stream': self.config.llm_config.stream,
             'stop': self.config.llm_config.stop,
             'response_format': {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "navigation_step",
-                    "schema": self._get_response_json_schema()
+                'type': 'json_schema',
+                'json_schema': {
+                    'name': 'navigation_step',
+                    'schema': self._get_response_json_schema()
+                }
+            },
+
+        }
+
+        if not debug:
+            # force json response from digitalocean client
+            json_force_config = {
+                'tools': [{
+                    'type': 'function',
+                    'function': {
+                        'name': 'navigation_step',
+                        'description': 'Produces structured navigation candidates.',
+                        'parameters': self._get_response_json_schema()
+                    }
+                }],
+                'tool_choice': {
+                    'type': 'function',
+                    'function': {'name': 'navigation_step'}
                 }
             }
-        }
+            base_config.update(json_force_config)
+        return base_config
 
     def generate_prompt(self, current: str, goal: str, valid_links: list[str]) -> str:
         return f"""
