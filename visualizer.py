@@ -111,7 +111,8 @@ class Visualizer(IOMixin):
         fig.savefig(self.gen_output_path(filename), dpi=300)
 
     def visualize_semantic_space(self, filename: str, metadata:pd.DataFrame, emb_path: str):
-        embeddings = torch.load(emb_path, weights_only=True)
+        #embeddings = torch.load(emb_path, weights_only=True)
+        embeddings = torch.load(emb_path, map_location="cpu")
         articles_df = metadata
         embeddings_np = embeddings.detach().cpu().numpy()
         tsne = TSNE(n_components=2, random_state=42, perplexity=5)
