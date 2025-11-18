@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from pydantic import BaseModel, Field, conlist
 
@@ -20,8 +21,9 @@ class Prompt:
             ) # type: ignore
         return NavigationStep.model_json_schema()
 
-    def get_config(self) -> dict:
-        return {
+    def get_config(self, debug: bool, is_blind: bool = False) -> dict:
+        schema = self._get_response_json_schema_blind() if is_blind else self._get_response_json_schema()
+        base_config = {
             'model': self.config.llm_config.model,
             'max_completion_tokens': self.config.llm_config.max_completion_tokens,
             'reasoning_effort': self.config.llm_config.reasoning_effort,
@@ -30,13 +32,33 @@ class Prompt:
             'stream': self.config.llm_config.stream,
             'stop': self.config.llm_config.stop,
             'response_format': {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "navigation_step",
-                    "schema": self._get_response_json_schema()
+                'type': 'json_schema',
+                'json_schema': {
+                    'name': 'navigation_step',
+                    'schema': schema
+                }
+            },
+
+        }
+
+        if not debug:
+            # force json response from digitalocean client
+            json_force_config = {
+                'tools': [{
+                    'type': 'function',
+                    'function': {
+                        'name': 'navigation_step',
+                        'description': 'Produces structured navigation candidates.',
+                        'parameters': schema
+                    }
+                }],
+                'tool_choice': {
+                    'type': 'function',
+                    'function': {'name': 'navigation_step'}
                 }
             }
-        }
+            base_config.update(json_force_config)
+        return base_config
 
     def generate_prompt(self, current: str, goal: str, valid_links: list[str]) -> str:
         return f"""
@@ -59,7 +81,6 @@ class Prompt:
             pages: list[str]
         return Path.model_json_schema()
 
-
     def generate_prompt_blind(self, start: str, goal: str) -> str:
         return f"""
         You are playing the Wikispeedia game.
@@ -76,24 +97,6 @@ class Prompt:
         
         Return your answer strictly following the JSON schema provided.
         """
-
-    def get_config_blind(self) -> dict:
-        return {
-            'model': self.config.llm_config.model,
-            'max_completion_tokens': self.config.llm_config.max_completion_tokens,
-            'reasoning_effort': self.config.llm_config.reasoning_effort,
-            'top_p': self.config.llm_config.top_p,
-            'temperature': self.config.llm_config.temperature,
-            'stream': self.config.llm_config.stream,
-            'stop': self.config.llm_config.stop,
-            'response_format': {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "path",
-                    "schema": self._get_response_json_schema_blind()
-                }
-            }
-        }
 
     def generate_prompt_with_memory(self, history: list[str], current: str, goal: str, valid_links: list[str]) -> str:
         return f"""
