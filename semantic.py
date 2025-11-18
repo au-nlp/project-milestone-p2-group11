@@ -71,3 +71,14 @@ class SemanticAnalyser(IOMixin):
 
         # average across all paths for each bin
         return [np.mean(information_gains[i]) for i in sorted(information_gains.keys())]
+
+    def get_cosine_similarity(self, page1: str, page2: str) -> float:
+        metadata_cache = self._get_metadata_mapping()
+        embeddings = self._get_embeddings()
+
+        index1 = metadata_cache[page1]
+        index2 = metadata_cache[page2]
+        embedding1 = embeddings[index1]
+        embedding2 = embeddings[index2]
+
+        return util.pytorch_cos_sim(embedding1, embedding2).item()

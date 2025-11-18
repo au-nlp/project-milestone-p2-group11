@@ -21,7 +21,8 @@ class Prompt:
             ) # type: ignore
         return NavigationStep.model_json_schema()
 
-    def get_config(self, debug: bool) -> dict:
+    def get_config(self, debug: bool, is_blind: bool = False) -> dict:
+        schema = self._get_response_json_schema_blind() if is_blind else self._get_response_json_schema()
         base_config = {
             'model': self.config.llm_config.model,
             'max_completion_tokens': self.config.llm_config.max_completion_tokens,
@@ -34,7 +35,7 @@ class Prompt:
                 'type': 'json_schema',
                 'json_schema': {
                     'name': 'navigation_step',
-                    'schema': self._get_response_json_schema()
+                    'schema': schema
                 }
             },
 
@@ -48,7 +49,7 @@ class Prompt:
                     'function': {
                         'name': 'navigation_step',
                         'description': 'Produces structured navigation candidates.',
-                        'parameters': self._get_response_json_schema()
+                        'parameters': schema
                     }
                 }],
                 'tool_choice': {
@@ -75,4 +76,62 @@ class Prompt:
         Return your answer strictly following the JSON schema provided.
         """
 
+    def _get_response_json_schema_blind(self) -> dict[str, Any]:
+        class Path(BaseModel):
+            pages: list[str]
+        return Path.model_json_schema()
+
+    def generate_prompt_blind(self, start: str, goal: str) -> str:
+        return f"""
+        You are playing the Wikispeedia game.
+        Start page: "{start}"
+        Goal page: "{goal}"
+    
+        Think step-by-step and suggest a possible path of Wikipedia pages that could help reach the goal.
+        - Each page in the path must be a valid Wikipedia page, and there must be a link between each consecutive page in wikipedia.
+        - At each step, explain briefly why you’re choosing that link.
+        - The path should start with the start page and end with the goal page.
+        
+        Once you’ve reached the destination, write the full path as a list of page titles.
+        At each step, you must explain why you’re clicking on the chosen link
+        
+        Return your answer strictly following the JSON schema provided.
+        """
+
+    def generate_prompt_with_memory(self, history: list[str], current: str, goal: str, valid_links: list[str]) -> str:
+        return f"""
+        You are playing the Wikispeedia game.
+        Current page: "{current}"
+        Goal page: "{goal}"
+        Previous pages visited: {", ".join(history)}
+    
+        Think step-by-step and suggest exactly 3 possible next Wikipedia pages that could help reach the goal.
+        - Only choose from this list of valid outgoing links: {valid_links}
+        - For each suggestion, include:
+          * next_page (must be exactly one of the valid_links)
+          * reason (why this might be useful)
+          * rating (1–10, higher = more promising)
+        - Do not suggest any pages that have already been visited in this path.
+    
+        Return your answer strictly following the JSON schema provided.
+        """
+
+    def generate_prompt_with_external_knowledge(self, current: str, goal: str, valid_links: list[str], external_knowledge: str) -> str:
+        return f"""
+        You are playing the Wikispeedia game.
+        Current page: "{current}"
+        Goal page: "{goal}"
+    
+        Think step-by-step and suggest exactly 3 possible next Wikipedia pages that could help reach the goal.
+        - Only choose from this list of valid outgoing links: {valid_links}
+        - For each suggestion, include:
+          * next_page (must be exactly one of the valid_links)
+          * reason (why this might be useful)
+          * rating (1–10, higher = more promising)
+          
+        Here is some additional external knowledge that might help you make better decisions:
+        {external_knowledge}, you can use this information to inform your suggestions.
+        
+        Return your answer strictly following the JSON schema provided.
+        """
 
