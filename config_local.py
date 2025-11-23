@@ -26,6 +26,7 @@ class LLMConfig:
 
 @dataclass
 class Config:
+    debug: bool
     header_pattern: str
     results_folder: str
     embeddings_folder: str
@@ -38,12 +39,20 @@ class Config:
     base_branch: int
     max_depth: int
     groq_api_key: str
+    digital_ocean_api_key: str
+    digital_ocean_url: str
     llm_config: LLMConfig
     input_files_paths: list[InputFile] = field(default_factory=list)
 
-
+# Digitalocean models:
+#     - openai-gpt-oss-120b
+#     - openai-gpt-oss-20b
+#     - llama3-8b-instruct
+#     - llama3.3-70b-instruct
 
 config = Config(
+    debug=False,
+
     # step 0
     header_pattern='# FORMAT:',
     results_folder='results/',
@@ -60,11 +69,14 @@ config = Config(
 
     # step 1
     groq_api_key=os.getenv('GROQ_API_KEY', ''),
+    digital_ocean_api_key=os.getenv('DIGITAL_OCEAN_API_KEY', ''),
+    digital_ocean_url='https://inference.do-ai.run/v1/',
     max_number_of_guesses_by_llm=10,
     base_branch=3,
     max_depth=14,
     llm_config=LLMConfig(
-        model='openai/gpt-oss-20b',
+        # model='openai/gpt-oss-20b',  # Groq
+        model='openai-gpt-oss-20b',
         max_completion_tokens=2048,
         reasoning_effort='medium',
         top_p=1,
