@@ -1,17 +1,19 @@
 import json
 import torch
+import logging
 import numpy as np
 import torch.nn.functional as F
 from groq import Groq
 from groq.types.chat.chat_completion_message import ChatCompletionMessage
-from dataclasses import asdict
+from openai import OpenAI
 import networkx as nx
-from networkx.algorithms.tree import branching_weight
-from pygments.lexer import combined
 
 from prompt import Prompt
 from config_local import Config
 from semantic import SemanticAnalyser
+
+logger = logging.getLogger(__name__)
+
 
 class Agent:
     def __init__(self, config: Config, link_mappings) -> None:
@@ -20,34 +22,52 @@ class Agent:
         self.llm_config = config.llm_config
         self.base_branch = config.base_branch
         self.max_depth = config.max_depth
-        self.api_key = config.groq_api_key
+        self.debug = config.debug
 
-        self.client = self._create_client()
+        if self.debug:
+            self.client = Groq(api_key=config.groq_api_key)
+        else:
+            self.client = OpenAI(
+                base_url=config.digital_ocean_url,
+                api_key=config.digital_ocean_api_key,
+            )
+
+        self.generate_func = self.client.chat.completions.create
         self.prompt = Prompt(config=config)
         self.semantic_analyser = SemanticAnalyser(config=config)
 
-    def _create_client(self) -> Groq:
-        return Groq(api_key=self.api_key)
-
-    
     def _ask_llm(self, prompt: str) -> ChatCompletionMessage:
-        return self.client.chat.completions.create(
-            **self.prompt.get_config(), messages=[{'role': 'user', 'content': prompt}]
+        return self.generate_func(
+            **self.prompt.get_config(self.debug), messages=[{'role': 'user', 'content': prompt}]
         ).choices[0].message
 
     def _ask_llm_blind(self, prompt: str) -> ChatCompletionMessage:
-        return self.client.chat.completions.create(
-            **self.prompt.get_config_blind(), messages=[{'role': 'user', 'content': prompt}]
+        return self.generate_func(
+            **self.prompt.get_config(self.debug, is_blind=True), messages=[{'role': 'user', 'content': prompt}]
         ).choices[0].message
         
-    def _parse_response(self, text: ChatCompletionMessage) -> list[tuple[str, int]]:
+    def _parse_response(
+            self, 
+            text: ChatCompletionMessage
+    ) -> list[tuple[str, int]] | None:
         content = text.content or '{}'
-        parsed_json = json.loads(content)
+
+        try:
+            parsed_json = json.loads(content)
+        except json.JSONDecodeError:
+            logger.error(f'LLM response is not a valid JSON: {content}')
+            return None
+
         return [
             (guess['next_page'], guess['rating']) for guess in parsed_json['candidates']
         ]
         
-    def _generate_and_score(self, current: str, goal: str, valid_links: list[str]) -> list[tuple[str, int]]:
+    def _generate_and_score(
+            self, 
+            current: str, 
+            goal: str, 
+            valid_links: list[str]
+    ) -> list[tuple[str, int]] | None:
         prompt = self.prompt.generate_prompt(current, goal, valid_links)
         text = self._ask_llm(prompt)
         return self._parse_response(text)
@@ -59,12 +79,16 @@ class Agent:
         parsed_json = json.loads(content)
         return parsed_json['pages']
 
-    def _generate_and_score_with_memory(self, current: str, goal: str, valid_links: list[str], history: list[str]) -> list[tuple[str, int]]:
+    def _generate_and_score_with_memory(
+            self, current: str, goal: str, valid_links: list[str], history: list[str]
+    ) -> list[tuple[str, int]] | None:
         prompt = self.prompt.generate_prompt_with_memory(history, current, goal, valid_links)
         text = self._ask_llm(prompt)
         return self._parse_response(text)
 
-    def _generate_and_score_with_external_info(self, current: str, goal: str, valid_links: list[str], external_info: str) -> list[tuple[str, int]]:
+    def _generate_and_score_with_external_info(
+            self, current: str, goal: str, valid_links: list[str], external_info: str
+    ) -> list[tuple[str, int]] | None:
         prompt = self.prompt.generate_prompt_with_external_knowledge(current, goal, valid_links, external_info)
         text = self._ask_llm(prompt)
         return self._parse_response(text)
@@ -211,16 +235,16 @@ class Agent:
                 G.add_edge(src, tgt)
         return G
 
-    def retrieve_graph_and_semantic_info(self, goal: str, valid_links: list[str]) -> list[tuple[str, int]]:
+    def retrieve_graph_and_semantic_info(self, goal: str, valid_links: list[str]) -> str:
         KG = self.build_link_graph()
-        max_degree = max(dict(KG.degree).values())
+        max_degree = max(dict(KG.degree).values()) # type: ignore
         pagerank = nx.pagerank(KG)
         pagerank_goal = pagerank.get(goal, 0)
         info = {}
         for link in valid_links:
             similarity = self.semantic_analyser.get_cosine_similarity(link, goal)
             centrality_score = abs(pagerank.get(link, 0) - pagerank_goal)
-            degree = KG.degree(link) / max_degree if max_degree > 0 else 0
+            degree = KG.degree(link) / max_degree if max_degree > 0 else 0 # type: ignore
             combined_score = 0.55 * similarity + 0.3 * centrality_score + 0.15 * degree
             info[link] = {'similarity_to_gaol': similarity, 'centrality_diff_to_goal': centrality_score, 'degree': degree, 'score': combined_score}
         links = sorted(info.items(), key=lambda x: x[1]['score'], reverse=True)[:20]
@@ -269,6 +293,4 @@ class Agent:
             if not unvisited_found:
                 break
         return path if path[-1] == goal else best_path
-
-
 
