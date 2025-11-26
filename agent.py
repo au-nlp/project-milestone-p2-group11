@@ -24,7 +24,7 @@ class Agent:
         self.base_branch = config.base_branch
         self.max_depth = config.max_depth
         self.debug = config.debug
-        print(self.debug)
+
         if self.debug:
             self.client = Groq(api_key=config.groq_api_key)
         else:
@@ -34,12 +34,17 @@ class Agent:
             )
 
         self.generate_func = self.client.chat.completions.create
+        self.generate_func = self.client.chat.completions.create
         self.prompt = Prompt(config=config)
         self.semantic_analyser = SemanticAnalyser(config=config)
 
+    def _create_client(self) -> Groq:
+        return Groq(api_key=self.api_key)
+
+    
     def _ask_llm(self, prompt: str) -> ChatCompletionMessage:
-        return self.generate_func(
-            **self.prompt.get_config(debug=self.debug), messages=[{'role': 'user', 'content': prompt}]
+        return self.client.chat.completions.create(
+            **self.prompt.get_config(), messages=[{'role': 'user', 'content': prompt}]
         ).choices[0].message
 
     def _ask_llm(self,prompt: str) -> ChatCompletionMessage:
@@ -61,7 +66,7 @@ class Agent:
         return choices
         
     def _parse_response(
-            self, 
+            self,
             text: ChatCompletionMessage
     ) -> list[tuple[str, int]] | None:
         content = text.content or '{}'
@@ -77,9 +82,9 @@ class Agent:
         ]
         
     def _generate_and_score(
-            self, 
-            current: str, 
-            goal: str, 
+            self,
+            current: str,
+            goal: str,
             valid_links: list[str],
             history: list[str] | None = None
     ) -> list[tuple[str, int]] | None:

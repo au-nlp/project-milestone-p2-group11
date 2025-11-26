@@ -333,3 +333,56 @@ class Preprocessor:
         result = pd.concat([result]*3, ignore_index=True)
 
         return result
+
+
+    # Compute number of categorical shifts per navigation path and the corresponding proportion
+    def get_shifts_per_path(self, article_cats_finished):
+        shifts_count = []
+        shifts_prop = []
+
+        for path in article_cats_finished:
+            if len(path) < 2:
+                continue
+            shifts = sum(1 for a, b in zip(path[:-1], path[1:]) if a != b)
+            shifts_count.append(shifts)
+            shifts_prop.append(shifts / (len(path)-1))
+
+        return shifts_count, shifts_prop
+
+    # Compute average number of categorical shifts per navigation path
+    def get_average_categorical_shifts_path(self, article_cats_finished):
+        total_shifts = 0
+        num_paths = 0
+
+        for path in article_cats_finished:
+            if len(path) < 2:
+                continue
+            shifts = sum(1 for a, b in zip(path[:-1], path[1:]) if a != b)
+            total_shifts += shifts
+            num_paths += 1
+
+        if num_paths == 0:
+            return 0.0
+
+        return total_shifts / num_paths
+
+    # Compute average number of categorical shifts per navigation step
+    def get_average_categorical_shifts_step(self, article_cats_finished):
+        total_shifts = 0
+        total_pairs = 0
+
+        for path in article_cats_finished:
+            if len(path) < 2:
+                continue
+            shifts = sum(1 for a, b in zip(path[:-1], path[1:]) if a != b)
+            total_shifts += shifts
+            total_pairs += len(path) - 1
+
+        if total_pairs == 0:
+            return 0.0
+
+        return total_shifts / total_pairs
+
+
+
+
