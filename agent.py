@@ -6,8 +6,9 @@ import torch.nn.functional as F
 from groq import Groq
 from groq.types.chat.chat_completion_message import ChatCompletionMessage
 from openai import OpenAI
+from tqdm import tqdm
 import networkx as nx
-
+import pandas as pd
 from prompt import Prompt
 from config_local import Config
 from semantic import SemanticAnalyser
@@ -23,7 +24,7 @@ class Agent:
         self.base_branch = config.base_branch
         self.max_depth = config.max_depth
         self.debug = config.debug
-
+        print(self.debug)
         if self.debug:
             self.client = Groq(api_key=config.groq_api_key)
         else:
@@ -38,13 +39,26 @@ class Agent:
 
     def _ask_llm(self, prompt: str) -> ChatCompletionMessage:
         return self.generate_func(
-            **self.prompt.get_config(self.debug), messages=[{'role': 'user', 'content': prompt}]
+            **self.prompt.get_config(debug=self.debug), messages=[{'role': 'user', 'content': prompt}]
         ).choices[0].message
 
+    def _ask_llm(self,prompt: str) -> ChatCompletionMessage:
+        result = self.generate_func(
+            **self.prompt.get_config(debug=self.debug), messages=[{'role': 'user', 'content': prompt}]
+        )
+        choices = result.choices[0].message
+        print("input tokens:", result.usage.prompt_tokens)
+        print("output tokens:", result.usage.completion_tokens)
+        return choices
+
     def _ask_llm_blind(self, prompt: str) -> ChatCompletionMessage:
-        return self.generate_func(
-            **self.prompt.get_config(self.debug, is_blind=True), messages=[{'role': 'user', 'content': prompt}]
-        ).choices[0].message
+        result = self.generate_func(
+            **self.prompt.get_config(debug=self.debug, is_blind=True), messages=[{'role': 'user', 'content': prompt}]
+        )
+        choices = result.choices[0].message
+        print("input tokens:", result.usage.prompt_tokens)
+        print("output tokens:", result.usage.completion_tokens)
+        return choices
         
     def _parse_response(
             self, 
@@ -66,9 +80,10 @@ class Agent:
             self, 
             current: str, 
             goal: str, 
-            valid_links: list[str]
+            valid_links: list[str],
+            history: list[str] | None = None
     ) -> list[tuple[str, int]] | None:
-        prompt = self.prompt.generate_prompt(current, goal, valid_links)
+        prompt = self.prompt.generate_prompt(current, goal, valid_links, memory=history)
         text = self._ask_llm(prompt)
         return self._parse_response(text)
 
@@ -82,18 +97,18 @@ class Agent:
     def _generate_and_score_with_memory(
             self, current: str, goal: str, valid_links: list[str], history: list[str]
     ) -> list[tuple[str, int]] | None:
-        prompt = self.prompt.generate_prompt_with_memory(history, current, goal, valid_links)
+        prompt = self.prompt.generate_prompt(history, current, goal, valid_links, memory=history)
         text = self._ask_llm(prompt)
         return self._parse_response(text)
 
     def _generate_and_score_with_external_info(
-            self, current: str, goal: str, valid_links: list[str], external_info: str
+            self, current: str, goal: str, valid_links: list[str], external_info: str, history: list[str]| None = None
     ) -> list[tuple[str, int]] | None:
-        prompt = self.prompt.generate_prompt_with_external_knowledge(current, goal, valid_links, external_info)
+        prompt = self.prompt.generate_prompt_with_external_knowledge(current, goal, valid_links, external_info, memory=history)
         text = self._ask_llm(prompt)
         return self._parse_response(text)
 
-    def navigate_tot(self, start: str, goal: str) -> list[str] | None:
+    def navigate_tot(self, start: str, goal: str,with_memory:bool = False) -> list[str] | None:
         visited = set([start])
         incomplete_paths = [[start]]
         best_path, best_score = None, -1
@@ -109,8 +124,11 @@ class Agent:
                 links = self.link_mappings[current]
                 if not links:
                     continue
-
-                llm_guesses = self._generate_and_score(current, goal, links)
+                if with_memory:
+                    memory = path[:-1] if len(path) > 1 else []
+                    llm_guesses = self._generate_and_score(current, goal, links, memory)
+                else:
+                    llm_guesses = self._generate_and_score(current, goal, links)
 
                 # if LLM gives no valid moves, skip this branch
                 if not llm_guesses:
@@ -139,7 +157,7 @@ class Agent:
 
         return best_path
 
-    def navigate_link_aware(self, start: str, goal: str) -> list[str] | None:
+    def navigate_link_aware(self, start: str, goal: str, with_memory:bool = False) -> list[str] | None:
         visited = set([start])
         path = [start]
         best_path, best_score = None, -1
@@ -152,8 +170,11 @@ class Agent:
             links = self.link_mappings[current]
             if not links:
                 continue
-
-            llm_guesses = self._generate_and_score(current, goal, links)
+            if with_memory:
+                memory = path[:-1] if len(path) > 1 else []
+                llm_guesses = self._generate_and_score(current, goal, links, memory)
+            else:
+                llm_guesses = self._generate_and_score(current, goal, links)
 
             # if LLM gives no valid moves, end navigation
             if not llm_guesses:
@@ -251,7 +272,7 @@ class Agent:
         result = {k: {kk: vv for kk, vv in v.items() if kk != "score"} for k, v in links}
         return str(result)
 
-    def navigate_with_external_info(self, start: str, goal: str) -> list[str] | None:
+    def navigate_with_external_info(self, start: str, goal: str, with_memory: bool = False) -> list[str] | None:
         visited = set([start])
         path = [start]
         best_path, best_score = None, -1
@@ -266,7 +287,11 @@ class Agent:
                 continue
 
             external_info = self.retrieve_graph_and_semantic_info(goal, links)
-            llm_guesses = self._generate_and_score_with_external_info(current, goal, links, external_info)
+            if with_memory:
+                memory = path[:-1] if len(path) > 1 else []
+                llm_guesses = self._generate_and_score_with_external_info(current, goal, links, external_info, memory)
+            else:
+                llm_guesses = self._generate_and_score_with_external_info(current, goal, links, external_info)
 
             # if LLM gives no valid moves, end navigation
             if not llm_guesses:
@@ -294,3 +319,46 @@ class Agent:
                 break
         return path if path[-1] == goal else best_path
 
+    def generate_llm_paths(self,df: pd.DataFrame) -> pd.DataFrame:
+        all_paths = []
+        # for the result, generate paths using multiple strategies, store them in each column
+        #if error in parsing, None for path
+        def safe_call(func, *args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                print(e)
+                return None
+
+        #for _, row in df.iterrows():
+        for _, row in tqdm(df.iterrows(), total=len(df)):
+            start = row['start']
+            goal = row['destination']
+            print(f"Generating paths from {start} to {goal}")
+            print("methods:blind")
+            path_blind = safe_call(self.navigate_blind,start, goal)
+            print("methods:link_aware")
+            path_link_aware = safe_call(self.navigate_link_aware,start, goal)
+            print("methods:link_aware_with_memory")
+            path_link_aware_with_memory = safe_call(self.navigate_link_aware,start, goal, with_memory=True)
+            print("methods:with_external_info")
+            path_with_external_info = safe_call(self.navigate_with_external_info,start, goal)
+            print("methods:with_external_info_with_memory")
+            path_with_external_info_with_memory = safe_call(self.navigate_with_external_info,start, goal, with_memory=True)
+            print("methods:tot")
+            path_tot = safe_call(self.navigate_tot,start, goal)
+            print("methods:tot_with_memory")
+            path_tot_with_memory = safe_call(self.navigate_tot,start, goal, with_memory=True)
+            all_paths.append({
+                'start': start,
+                'destination': goal,
+                'path_blind': path_blind,
+                'path_link_aware': path_link_aware,
+                'path_link_aware_with_memory': path_link_aware_with_memory,
+                'path_with_external_info': path_with_external_info,
+                'path_with_external_info_with_memory': path_with_external_info_with_memory,
+                'path_tot': path_tot,
+                'path_tot_with_memory': path_tot_with_memory
+            })
+
+        return pd.DataFrame(all_paths)

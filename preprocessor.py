@@ -282,3 +282,54 @@ class Preprocessor:
         # Drop cat_move col
         cat_shift_df_pairs.drop(columns="cat_move", inplace=True)
         return cat_shift_df_pairs
+
+    def get_pairs_for_experiment(self,df: pd.DataFrame, num_pairs: int) -> pd.DataFrame:
+        """
+        Creates a balanced sample of start–destination pairs by difficulty:
+            - Medium:      50% ≤ success rate < 75%
+            - Hard:        25% ≤ success rate < 50%
+            - Very Hard:   1%  ≤ success rate < 25%
+            - Impossible:  success rate = 0%
+        Selects the top (most-played) start–destination pairs from each bin.
+        """
+
+        # Aggregate success_count and sample_count per (start, destination)
+        agg_df = df.groupby(["start", "destination"]).agg(
+            success_count=("end", lambda x: x.notnull().sum()),
+            sample_count=("end", "size")
+        ).reset_index()
+
+        # success rate
+        agg_df["success_rate"] = agg_df["success_count"] / agg_df["sample_count"]
+
+        # define difficulty bins
+        bins = {
+            "Medium": (0.50, 0.75),
+            "Hard": (0.25, 0.50),
+            "Very Hard": (0.01, 0.25),
+            "Impossible": (0.00, 0.00)  # exactly 0%
+        }
+
+        selected_pairs = []
+        pairs_per_bin = num_pairs // len(bins)  # 120/4 = 30
+
+        # select top pairs from each difficulty bin
+        #result is a pd DataFrame with columns: start, destination, difficulty
+        for difficulty, (lower, upper) in bins.items():
+            if difficulty == "Impossible":
+                bin_df = agg_df[agg_df["success_rate"] == 0.0]
+            else:
+                bin_df = agg_df[(agg_df["success_rate"] >= lower) & (agg_df["success_rate"] < upper)]
+
+            # select top pairs by sample_count
+            top_pairs = bin_df.nlargest(pairs_per_bin, "sample_count")
+
+            # annotate difficulty
+            top_pairs = top_pairs.assign(difficulty=difficulty)
+
+            selected_pairs.append(top_pairs)
+        result = pd.concat(selected_pairs, ignore_index=True)
+        #stack each row 3 times and concat into a single DataFrame
+        result = pd.concat([result]*3, ignore_index=True)
+
+        return result

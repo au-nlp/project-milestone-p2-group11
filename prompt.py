@@ -60,19 +60,26 @@ class Prompt:
             base_config.update(json_force_config)
         return base_config
 
-    def generate_prompt(self, current: str, goal: str, valid_links: list[str]) -> str:
+    def generate_prompt(self, current: str, goal: str, valid_links: list[str],memory: list[str] | None = None) -> str:
+        memory_block = ""
+        avoid_block = ""
+        if memory:
+            memory_block = f"Previous pages visited: {', '.join(memory)}\n\n"
+            avoid_block = "- Do not suggest any pages that have already been visited in this path.\n\n"
         return f"""
         You are playing the Wikispeedia game.
         Current page: "{current}"
         Goal page: "{goal}"
-    
+        {memory_block}
         Think step-by-step and suggest exactly 3 possible next Wikipedia pages that could help reach the goal.
         - Only choose from this list of valid outgoing links: {valid_links}
         - For each suggestion, include:
           * next_page (must be exactly one of the valid_links)
           * reason (why this might be useful)
           * rating (1–10, higher = more promising)
-    
+        {avoid_block}
+        Return your answer strictly following the JSON schema provided.
+        Return your answer strictly following the JSON schema provided.
         Return your answer strictly following the JSON schema provided.
         """
 
@@ -96,6 +103,8 @@ class Prompt:
         At each step, you must explain why you’re clicking on the chosen link
         
         Return your answer strictly following the JSON schema provided.
+        Return your answer strictly following the JSON schema provided.
+        Return your answer strictly following the JSON schema provided.
         """
 
     def generate_prompt_with_memory(self, history: list[str], current: str, goal: str, valid_links: list[str]) -> str:
@@ -116,22 +125,29 @@ class Prompt:
         Return your answer strictly following the JSON schema provided.
         """
 
-    def generate_prompt_with_external_knowledge(self, current: str, goal: str, valid_links: list[str], external_knowledge: str) -> str:
+    def generate_prompt_with_external_knowledge(self, current: str, goal: str, valid_links: list[str], external_knowledge: str,memory = list[str] | None) -> str:
+        memory_block = ""
+        avoid_block = ""
+        if memory:
+            memory_block = f"Previous pages visited: {', '.join(memory)}\n\n"
+            avoid_block = "- Do not suggest any pages that have already been visited in this path.\n\n" if memory else ""
         return f"""
         You are playing the Wikispeedia game.
         Current page: "{current}"
         Goal page: "{goal}"
-    
+        {memory_block}
         Think step-by-step and suggest exactly 3 possible next Wikipedia pages that could help reach the goal.
         - Only choose from this list of valid outgoing links: {valid_links}
         - For each suggestion, include:
           * next_page (must be exactly one of the valid_links)
           * reason (why this might be useful)
           * rating (1–10, higher = more promising)
-          
+        {avoid_block} 
         Here is some additional external knowledge that might help you make better decisions:
         {external_knowledge}, you can use this information to inform your suggestions.
         
+        Return your answer strictly following the JSON schema provided.
+        Return your answer strictly following the JSON schema provided.
         Return your answer strictly following the JSON schema provided.
         """
 
