@@ -9,6 +9,9 @@ import plotly.io as pio
 from common import IOMixin
 from config_local import Config
 
+import seaborn as sns
+sns.color_palette("tab10")  #use same color palette as matplotlieb : categorical shifts
+
 
 class Visualizer(IOMixin):
     def __init__(self, config: Config) -> None:
@@ -203,6 +206,99 @@ class Visualizer(IOMixin):
         # Plot
         fig.write_image(self.gen_output_path(filename))  # Save as static image
         #fig.show() # Uncomment and run for an interactive sankey diagram visualization
+
+    def visualize_categorical_shifts_barchart_comparison(self, avg_shifts_path, avg_shifts_step, labels):
+        x = np.arange(len(labels))
+        width = 0.40  
+        fig, ax = plt.subplots(figsize=(12, 6))
+        rects1 = ax.bar(x - width/2, avg_shifts_path, width, label='Humans')
+        rects2 = ax.bar(x + width/2, avg_shifts_step, width, label='LLMs')
+        ax.set_ylabel('No. of categorical shifts')
+        ax.set_title('Humans vs LLMs: Average Categorical Shifts (Navigation Path)')
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels)
+        ax.legend()
+        plt.show()
+
+    def visualize_categorical_shifts_violin_comparison(self, shifts_per_path_humans, shifts_per_path_llms, labels):
+        plt.figure(figsize=(12, 6))
+        sns.violinplot(data=[shifts_per_path_humans, shifts_per_path_llms])
+        plt.xticks([0, 1], labels)
+        plt.ylabel('No. of categorical shifts')
+        plt.title('Violin Chart of Categorical Shifts Distribution (Navigation Path)')
+        plt.show()
+        
+    def visualize_categorical_shifts_focuses_violin_comparison(self, shifts_per_path_humans, shifts_per_path_llms, labels):
+        fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+        # Humans
+        sns.violinplot(
+            x=[0] * len(shifts_per_path_humans),
+            y=shifts_per_path_humans,
+            ax=ax,
+            cut=0,
+            density_norm='width',
+            color=sns.color_palette("tab10")[0]
+        )
+        # LLMs 
+        sns.violinplot(
+            x=[1] * len(shifts_per_path_llms),
+            y=shifts_per_path_llms,
+            ax=ax,
+            cut=0,
+            density_norm='width',
+            color=sns.color_palette("tab10")[1]
+        )
+        ax.set_title('Violin Chart of Categorical Shift Distributions (Navigation Path)')
+        ax.set_ylabel('No. of categorical shifts')
+        ax.set_ylim(0, 35)
+        ax.grid(axis='y', linestyle='-', color='gray', alpha=0.2)
+        ax.set_yticks(list(np.arange(0, 16, 1)) + [15, 20, 25, 30, 35])
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels([labels[0], labels[1]])
+        plt.tight_layout()
+        plt.show()
+
+    def visualize_categorical_shifts_scatterplot_comparison(self, df: pd.DataFrame):
+        plt.figure(figsize=(12,6))
+        sns.stripplot(
+            x='Group', 
+            y='Shifts_per_path', 
+            data=df, 
+            jitter=0.35,
+            hue='Group', 
+            size=7,    
+            alpha=0.4
+        )
+        plt.title('Scatterplot of Categorical Shift Distributions (Navigation Path)')
+        plt.xlabel('')
+        plt.ylabel('No. of categorical shifts')
+        plt.ylim(0)
+        plt.show()
+
+    def visualize_categorical_shifts_scatterplot_sidebyside_comparison(self, df: pd.DataFrame):
+        fig, axes = plt.subplots(1, 3, figsize=(18, 8), sharex=True)
+        # Y axis scope for each sublot
+        y_limits = [None, 100, 50] 
+        titles = ['All datapoints', 'Path Lengths: 0-100', 'Path Lengths: 0-50']
+        # plot
+        for ax, ylim, title in zip(axes, y_limits, titles):
+            sns.stripplot(
+                x='Group', 
+                y='Shifts_per_path', 
+                data=df, 
+                jitter=0.35, 
+                hue='Group', 
+                size=7,    
+                ax=ax,
+                alpha=0.4
+            )
+            ax.set_title(f'Categorical Shifts Distribution  ({title})')
+            ax.set_xlabel('')
+            ax.set_ylabel('No. of categorical shifts')
+            ax.set_ylim(0, ylim)
+            ax.grid(axis='y', linestyle='-', color='gray', alpha=0.2)
+        plt.tight_layout()
+        plt.show()
 
     def visualize_ratings_distribution(self, df: pd.DataFrame, filename: str):
         fig, _ = plt.subplots(figsize=(12, 8))
