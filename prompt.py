@@ -60,7 +60,7 @@ class Prompt:
             base_config.update(json_force_config)
         return base_config
 
-    def generate_prompt(self, current: str, goal: str, valid_links: list[str],memory: list[str] | None = None) -> str:
+    def generate_prompt(self, current: str, goal: str, valid_links: list[str], memory: list[str] | None = None) -> str:
         memory_block = ""
         avoid_block = ""
         if memory:
@@ -78,8 +78,6 @@ class Prompt:
           * reason (why this might be useful)
           * rating (1–10, higher = more promising)
         {avoid_block}
-        Return your answer strictly following the JSON schema provided.
-        Return your answer strictly following the JSON schema provided.
         Return your answer strictly following the JSON schema provided.
         """
 
@@ -103,8 +101,6 @@ class Prompt:
         At each step, you must explain why you’re clicking on the chosen link
         
         Return your answer strictly following the JSON schema provided.
-        Return your answer strictly following the JSON schema provided.
-        Return your answer strictly following the JSON schema provided.
         """
 
     def generate_prompt_with_memory(self, history: list[str], current: str, goal: str, valid_links: list[str]) -> str:
@@ -125,7 +121,14 @@ class Prompt:
         Return your answer strictly following the JSON schema provided.
         """
 
-    def generate_prompt_with_external_knowledge(self, current: str, goal: str, valid_links: list[str], external_knowledge: str,memory = list[str] | None) -> str:
+    def generate_prompt_with_external_knowledge(
+        self,
+        current: str,
+        goal: str,
+        valid_links: list[str],
+        external_knowledge: str,
+        memory: list[str] | None = None
+    ) -> str:
         memory_block = ""
         avoid_block = ""
         if memory:
@@ -145,9 +148,7 @@ class Prompt:
         {avoid_block} 
         Here is some additional external knowledge that might help you make better decisions:
         {external_knowledge}, you can use this information to inform your suggestions.
-        
-        Return your answer strictly following the JSON schema provided.
-        Return your answer strictly following the JSON schema provided.
+
         Return your answer strictly following the JSON schema provided.
         """
 

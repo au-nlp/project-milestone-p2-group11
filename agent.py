@@ -9,11 +9,21 @@ from openai import OpenAI
 from tqdm import tqdm
 import networkx as nx
 import pandas as pd
+
 from prompt import Prompt
 from config_local import Config
 from semantic import SemanticAnalyser
 
+
 logger = logging.getLogger(__name__)
+
+
+PRICE_MAPPER = {
+    'openai-gpt-oss-20b': {
+        'input': 0.05,
+        'output': 0.45,
+    }
+}
 
 
 class Agent:
@@ -38,32 +48,19 @@ class Agent:
         self.prompt = Prompt(config=config)
         self.semantic_analyser = SemanticAnalyser(config=config)
 
-    def _create_client(self) -> Groq:
-        return Groq(api_key=self.api_key)
-
-    
-    def _ask_llm(self, prompt: str) -> ChatCompletionMessage:
-        return self.client.chat.completions.create(
-            **self.prompt.get_config(), messages=[{'role': 'user', 'content': prompt}]
-        ).choices[0].message
-
-    def _ask_llm(self,prompt: str) -> ChatCompletionMessage:
+    def _ask_llm(self,prompt: str) -> tuple[ChatCompletionMessage, int, int]:
         result = self.generate_func(
             **self.prompt.get_config(debug=self.debug), messages=[{'role': 'user', 'content': prompt}]
         )
         choices = result.choices[0].message
-        print("input tokens:", result.usage.prompt_tokens)
-        print("output tokens:", result.usage.completion_tokens)
-        return choices
+        return choices, result.usage.prompt_tokens, result.usage.completion_tokens
 
-    def _ask_llm_blind(self, prompt: str) -> ChatCompletionMessage:
+    def _ask_llm_blind(self, prompt: str) -> tuple[ChatCompletionMessage, int, int]:
         result = self.generate_func(
             **self.prompt.get_config(debug=self.debug, is_blind=True), messages=[{'role': 'user', 'content': prompt}]
         )
         choices = result.choices[0].message
-        print("input tokens:", result.usage.prompt_tokens)
-        print("output tokens:", result.usage.completion_tokens)
-        return choices
+        return choices, result.usage.prompt_tokens, result.usage.completion_tokens
         
     def _parse_response(
             self,
@@ -87,36 +84,38 @@ class Agent:
             goal: str,
             valid_links: list[str],
             history: list[str] | None = None
-    ) -> list[tuple[str, int]] | None:
+    ) -> tuple[list[tuple[str, int]] | None, int, int]:
         prompt = self.prompt.generate_prompt(current, goal, valid_links, memory=history)
-        text = self._ask_llm(prompt)
-        return self._parse_response(text)
+        text, input_tokens, output_tokens = self._ask_llm(prompt)
+        return self._parse_response(text), input_tokens, output_tokens
 
-    def _generate_blind(self, start: str, goal: str) -> list[str]:
+    def _generate_blind(self, start: str, goal: str) -> tuple[list[str], int, int]:
         prompt = self.prompt.generate_prompt_blind(start, goal)
-        text = self._ask_llm_blind(prompt)
+        text, input_tokens, output_tokens = self._ask_llm_blind(prompt)
         content = text.content or '{}'
         parsed_json = json.loads(content)
-        return parsed_json['pages']
+        return parsed_json['pages'], input_tokens, output_tokens
 
     def _generate_and_score_with_memory(
             self, current: str, goal: str, valid_links: list[str], history: list[str]
-    ) -> list[tuple[str, int]] | None:
-        prompt = self.prompt.generate_prompt(history, current, goal, valid_links, memory=history)
-        text = self._ask_llm(prompt)
-        return self._parse_response(text)
+    ) -> tuple[list[tuple[str, int]] | None, int, int]:
+        prompt = self.prompt.generate_prompt(current, goal, valid_links, memory=history)
+        text, input_tokens, output_tokens = self._ask_llm(prompt)
+        return self._parse_response(text), input_tokens, output_tokens
 
     def _generate_and_score_with_external_info(
             self, current: str, goal: str, valid_links: list[str], external_info: str, history: list[str]| None = None
-    ) -> list[tuple[str, int]] | None:
+    ) -> tuple[list[tuple[str, int]] | None, int, int]:
         prompt = self.prompt.generate_prompt_with_external_knowledge(current, goal, valid_links, external_info, memory=history)
-        text = self._ask_llm(prompt)
-        return self._parse_response(text)
+        text, input_tokens, output_tokens = self._ask_llm(prompt)
+        return self._parse_response(text), input_tokens, output_tokens
 
-    def navigate_tot(self, start: str, goal: str,with_memory:bool = False) -> list[str] | None:
+    def navigate_tot(self, start: str, goal: str,with_memory:bool = False) -> tuple[list[str] | None, int, int]:
         visited = set([start])
         incomplete_paths = [[start]]
         best_path, best_score = None, -1
+
+        total_input_tokens = total_output_tokens = 0
 
         for _ in range(self.max_depth):
             new_incomplete_paths = []
@@ -124,16 +123,19 @@ class Agent:
                 current = path[-1]
 
                 if current == goal:
-                    return path
+                    return path, total_input_tokens, total_output_tokens
 
                 links = self.link_mappings[current]
                 if not links:
                     continue
                 if with_memory:
                     memory = path[:-1] if len(path) > 1 else []
-                    llm_guesses = self._generate_and_score(current, goal, links, memory)
+                    llm_guesses, input_tokens, output_tokens = self._generate_and_score(current, goal, links, memory)
                 else:
-                    llm_guesses = self._generate_and_score(current, goal, links)
+                    llm_guesses, input_tokens, output_tokens = self._generate_and_score(current, goal, links)
+
+                total_input_tokens += input_tokens
+                total_output_tokens += output_tokens
 
                 # if LLM gives no valid moves, skip this branch
                 if not llm_guesses:
@@ -160,26 +162,32 @@ class Agent:
                 break
             incomplete_paths = new_incomplete_paths
 
-        return best_path
+        return best_path, total_input_tokens, total_output_tokens
 
-    def navigate_link_aware(self, start: str, goal: str, with_memory:bool = False) -> list[str] | None:
+    def navigate_link_aware(self, start: str, goal: str, with_memory:bool = False) -> tuple[list[str] | None, int, int]:
         visited = set([start])
         path = [start]
         best_path, best_score = None, -1
+
+        total_input_tokens = total_output_tokens = 0
+
         for _ in range(self.max_depth):
             current = path[-1]
 
             if current == goal:
-                return path
+                return path, total_input_tokens, total_output_tokens
 
             links = self.link_mappings[current]
             if not links:
                 continue
             if with_memory:
                 memory = path[:-1] if len(path) > 1 else []
-                llm_guesses = self._generate_and_score(current, goal, links, memory)
+                llm_guesses, input_tokens, output_tokens = self._generate_and_score(current, goal, links, memory)
             else:
-                llm_guesses = self._generate_and_score(current, goal, links)
+                llm_guesses, input_tokens, output_tokens = self._generate_and_score(current, goal, links)
+
+            total_input_tokens += input_tokens
+            total_output_tokens += output_tokens
 
             # if LLM gives no valid moves, end navigation
             if not llm_guesses:
@@ -205,21 +213,24 @@ class Agent:
                     break
             if not unvisited_found:
                 break
-        return path if path[-1] == goal else best_path
+        result = path if path[-1] == goal else best_path
+        return result, total_input_tokens, total_output_tokens
 
-    def navigate_blind(self, start: str, goal: str) -> list[str] | None:
-        path = self._generate_blind(start, goal)
-        return path
+    def navigate_blind(self, start: str, goal: str) -> tuple[list[str] | None, int, int]:
+        return self._generate_blind(start, goal)
 
-    def navigate_link_aware_with_memory(self, start: str, goal: str) -> list[str] | None:
+    def navigate_link_aware_with_memory(self, start: str, goal: str) -> tuple[list[str] | None, int, int]:
         visited = set([start])
         path = [start]
         best_path, best_score = None, -1
+
+        total_input_tokens = total_output_tokens = 0
+
         for _ in range(self.max_depth):
             current = path[-1]
 
             if current == goal:
-                return path
+                return path, total_input_tokens, total_output_tokens
 
             links = self.link_mappings[current]
             if not links:
@@ -227,7 +238,11 @@ class Agent:
 
             #memory is the current path
             memory = path[:-1] if len(path) > 1 else []
-            llm_guesses = self._generate_and_score_with_memory(current, goal, links, memory)
+            llm_guesses, input_tokens, output_tokens = self._generate_and_score_with_memory(current, goal, links, memory)
+
+            total_input_tokens += input_tokens
+            total_output_tokens += output_tokens
+
             # if LLM gives no valid moves, end navigation
             if not llm_guesses:
                 continue
@@ -252,7 +267,8 @@ class Agent:
                     break
             if not unvisited_found:
                 break
-        return path if path[-1] == goal else best_path
+        result = path if path[-1] == goal else best_path
+        return result, total_input_tokens, total_output_tokens 
 
     def build_link_graph(self):
         G = nx.DiGraph()
@@ -277,15 +293,18 @@ class Agent:
         result = {k: {kk: vv for kk, vv in v.items() if kk != "score"} for k, v in links}
         return str(result)
 
-    def navigate_with_external_info(self, start: str, goal: str, with_memory: bool = False) -> list[str] | None:
+    def navigate_with_external_info(self, start: str, goal: str, with_memory: bool = False) -> tuple[list[str] | None, int, int]:
         visited = set([start])
         path = [start]
         best_path, best_score = None, -1
+
+        total_input_tokens = total_output_tokens = 0
+
         for _ in range(self.max_depth):
             current = path[-1]
 
             if current == goal:
-                return path
+                return path, total_input_tokens, total_output_tokens
 
             links = self.link_mappings[current]
             if not links:
@@ -294,9 +313,12 @@ class Agent:
             external_info = self.retrieve_graph_and_semantic_info(goal, links)
             if with_memory:
                 memory = path[:-1] if len(path) > 1 else []
-                llm_guesses = self._generate_and_score_with_external_info(current, goal, links, external_info, memory)
+                llm_guesses, input_tokens, output_tokens = self._generate_and_score_with_external_info(current, goal, links, external_info, memory)
             else:
-                llm_guesses = self._generate_and_score_with_external_info(current, goal, links, external_info)
+                llm_guesses, input_tokens, output_tokens = self._generate_and_score_with_external_info(current, goal, links, external_info)
+
+            total_input_tokens += input_tokens
+            total_output_tokens += output_tokens
 
             # if LLM gives no valid moves, end navigation
             if not llm_guesses:
@@ -322,7 +344,8 @@ class Agent:
                     break
             if not unvisited_found:
                 break
-        return path if path[-1] == goal else best_path
+        result = path if path[-1] == goal else best_path
+        return result, total_input_tokens, total_output_tokens
 
     def generate_llm_paths(self,df: pd.DataFrame) -> pd.DataFrame:
         all_paths = []
@@ -335,35 +358,28 @@ class Agent:
                 print(e)
                 return None
 
-        #for _, row in df.iterrows():
         for _, row in tqdm(df.iterrows(), total=len(df)):
             start = row['start']
             goal = row['destination']
-            print(f"Generating paths from {start} to {goal}")
-            print("methods:blind")
+
             path_blind = safe_call(self.navigate_blind,start, goal)
-            print("methods:link_aware")
             path_link_aware = safe_call(self.navigate_link_aware,start, goal)
-            print("methods:link_aware_with_memory")
-            path_link_aware_with_memory = safe_call(self.navigate_link_aware,start, goal, with_memory=True)
-            print("methods:with_external_info")
             path_with_external_info = safe_call(self.navigate_with_external_info,start, goal)
-            print("methods:with_external_info_with_memory")
-            path_with_external_info_with_memory = safe_call(self.navigate_with_external_info,start, goal, with_memory=True)
-            print("methods:tot")
             path_tot = safe_call(self.navigate_tot,start, goal)
-            print("methods:tot_with_memory")
-            path_tot_with_memory = safe_call(self.navigate_tot,start, goal, with_memory=True)
             all_paths.append({
                 'start': start,
                 'destination': goal,
                 'path_blind': path_blind,
                 'path_link_aware': path_link_aware,
-                'path_link_aware_with_memory': path_link_aware_with_memory,
                 'path_with_external_info': path_with_external_info,
-                'path_with_external_info_with_memory': path_with_external_info_with_memory,
                 'path_tot': path_tot,
-                'path_tot_with_memory': path_tot_with_memory
             })
 
         return pd.DataFrame(all_paths)
+
+    def log_cost(self, total_input_tokens, total_output_tokens: int):
+        price_info = PRICE_MAPPER.get(self.llm_config.model, {})
+        input_price = price_info['input'] * total_input_tokens * 1e-6
+        output_price = price_info['output'] * total_output_tokens * 1e-6
+        print(f'input price: {input_price:.2f}$, output price: {output_price:.2f}$')
+
