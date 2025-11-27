@@ -283,33 +283,100 @@ class Preprocessor:
         cat_shift_df_pairs.drop(columns="cat_move", inplace=True)
         return cat_shift_df_pairs
 
+    def get_pairs_for_experiment(self,df: pd.DataFrame, num_pairs: int) -> pd.DataFrame:
+        """
+        Creates a balanced sample of start–destination pairs by difficulty:
+            - Medium:      50% ≤ success rate < 75%
+            - Hard:        25% ≤ success rate < 50%
+            - Very Hard:   1%  ≤ success rate < 25%
+            - Impossible:  success rate = 0%
+        Selects the top (most-played) start–destination pairs from each bin.
+        """
 
-    # Compute number of categorical shifts per navigation path and the corresponding proportion 
+        # Aggregate success_count and sample_count per (start, destination)
+        agg_df = df.groupby(["start", "destination"]).agg(
+            success_count=("end", lambda x: x.notnull().sum()),
+            sample_count=("end", "size")
+        ).reset_index()
+
+        # success rate
+        agg_df["success_rate"] = agg_df["success_count"] / agg_df["sample_count"]
+
+        # define difficulty bins
+        bins = {
+            "Medium": (0.50, 0.75),
+            "Hard": (0.25, 0.50),
+            # "Very Hard": (0.01, 0.25),
+            # SKIP Impossible
+            # "Impossible": (0.00, 0.00)  # exactly 0%
+        }
+
+        selected_pairs = []
+
+        # select top pairs from each difficulty bin
+        #result is a pd DataFrame with columns: start, destination, difficulty
+        for difficulty, (lower, upper) in bins.items():
+            # SKIP Impossible
+            # if difficulty == "Impossible":
+            #     bin_df = agg_df[agg_df["success_rate"] == 0.0]
+            # else:
+            #     bin_df = agg_df[(agg_df["success_rate"] >= lower) & (agg_df["success_rate"] < upper)]
+
+            bin_df = agg_df[(agg_df["success_rate"] >= lower) & (agg_df["success_rate"] < upper)]
+
+            # select top pairs by sample_count
+            top_pairs = bin_df.nlargest(num_pairs, "sample_count")
+
+            # annotate difficulty
+            top_pairs = top_pairs.assign(difficulty=difficulty)
+
+            selected_pairs.append(top_pairs)
+
+        result = pd.concat(selected_pairs, ignore_index=True)
+
+        # stack 3 times
+        result = pd.concat([result] * 3, ignore_index=True)
+
+        # add replicate index: 0, 1, 2
+        result['replicate_idx'] = result.groupby(['start', 'destination']).cumcount()
+
+        # global unique identifier
+        result['id'] = (
+            result['start']
+            + "_"
+            + result['destination']
+            + "_"
+            + result['replicate_idx'].astype(str)
+        )
+        return result
+
+
+    # Compute number of categorical shifts per navigation path and the corresponding proportion
     def get_shifts_per_path(self, article_cats_finished):
         shifts_count = []
         shifts_prop = []
-    
+
         for path in article_cats_finished:
             if len(path) < 2:
                 continue
             shifts = sum(1 for a, b in zip(path[:-1], path[1:]) if a != b)
             shifts_count.append(shifts)
-            shifts_prop.append(shifts / (len(path)-1))  
-    
+            shifts_prop.append(shifts / (len(path)-1))
+
         return shifts_count, shifts_prop
 
     # Compute average number of categorical shifts per navigation path
     def get_average_categorical_shifts_path(self, article_cats_finished):
         total_shifts = 0
         num_paths = 0
-    
+
         for path in article_cats_finished:
             if len(path) < 2:
                 continue
             shifts = sum(1 for a, b in zip(path[:-1], path[1:]) if a != b)
             total_shifts += shifts
             num_paths += 1
-    
+
         if num_paths == 0:
             return 0.0
 
@@ -331,7 +398,4 @@ class Preprocessor:
             return 0.0
 
         return total_shifts / total_pairs
-
-
-
 
