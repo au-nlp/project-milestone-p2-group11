@@ -306,32 +306,48 @@ class Preprocessor:
         bins = {
             "Medium": (0.50, 0.75),
             "Hard": (0.25, 0.50),
-            "Very Hard": (0.01, 0.25),
-            "Impossible": (0.00, 0.00)  # exactly 0%
+            # "Very Hard": (0.01, 0.25),
+            # SKIP Impossible
+            # "Impossible": (0.00, 0.00)  # exactly 0%
         }
 
         selected_pairs = []
-        pairs_per_bin = num_pairs // len(bins)  # 120/4 = 30
 
         # select top pairs from each difficulty bin
         #result is a pd DataFrame with columns: start, destination, difficulty
         for difficulty, (lower, upper) in bins.items():
-            if difficulty == "Impossible":
-                bin_df = agg_df[agg_df["success_rate"] == 0.0]
-            else:
-                bin_df = agg_df[(agg_df["success_rate"] >= lower) & (agg_df["success_rate"] < upper)]
+            # SKIP Impossible
+            # if difficulty == "Impossible":
+            #     bin_df = agg_df[agg_df["success_rate"] == 0.0]
+            # else:
+            #     bin_df = agg_df[(agg_df["success_rate"] >= lower) & (agg_df["success_rate"] < upper)]
+
+            bin_df = agg_df[(agg_df["success_rate"] >= lower) & (agg_df["success_rate"] < upper)]
 
             # select top pairs by sample_count
-            top_pairs = bin_df.nlargest(pairs_per_bin, "sample_count")
+            top_pairs = bin_df.nlargest(num_pairs, "sample_count")
 
             # annotate difficulty
             top_pairs = top_pairs.assign(difficulty=difficulty)
 
             selected_pairs.append(top_pairs)
-        result = pd.concat(selected_pairs, ignore_index=True)
-        #stack each row 3 times and concat into a single DataFrame
-        result = pd.concat([result]*3, ignore_index=True)
 
+        result = pd.concat(selected_pairs, ignore_index=True)
+
+        # stack 3 times
+        result = pd.concat([result] * 3, ignore_index=True)
+
+        # add replicate index: 0, 1, 2
+        result['replicate_idx'] = result.groupby(['start', 'destination']).cumcount()
+
+        # global unique identifier
+        result['id'] = (
+            result['start']
+            + "_"
+            + result['destination']
+            + "_"
+            + result['replicate_idx'].astype(str)
+        )
         return result
 
 
@@ -382,7 +398,4 @@ class Preprocessor:
             return 0.0
 
         return total_shifts / total_pairs
-
-
-
 

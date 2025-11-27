@@ -75,10 +75,10 @@ class Prompt:
         - Only choose from this list of valid outgoing links: {valid_links}
         - For each suggestion, include:
           * next_page (must be exactly one of the valid_links)
-          * reason (why this might be useful)
           * rating (1–10, higher = more promising)
         {avoid_block}
-        Return your answer strictly following the JSON schema provided.
+        Return your answer strictly following this JSON schema:
+        {self._get_response_json_schema()}
         """
 
     def _get_response_json_schema_blind(self) -> dict[str, Any]:
@@ -97,10 +97,9 @@ class Prompt:
         - At each step, explain briefly why you’re choosing that link.
         - The path should start with the start page and end with the goal page.
         
-        Once you’ve reached the destination, write the full path as a list of page titles.
-        At each step, you must explain why you’re clicking on the chosen link
-        
-        Return your answer strictly following the JSON schema provided.
+        Once you’ve reached the destination, write the full path.
+        Return your answer strictly following this JSON schema:
+        {self._get_response_json_schema_blind()}
         """
 
     def generate_prompt_with_memory(self, history: list[str], current: str, goal: str, valid_links: list[str]) -> str:
@@ -114,11 +113,10 @@ class Prompt:
         - Only choose from this list of valid outgoing links: {valid_links}
         - For each suggestion, include:
           * next_page (must be exactly one of the valid_links)
-          * reason (why this might be useful)
           * rating (1–10, higher = more promising)
         - Do not suggest any pages that have already been visited in this path.
-    
-        Return your answer strictly following the JSON schema provided.
+        Return your answer strictly following this JSON schema:
+        {self._get_response_json_schema()}
         """
 
     def generate_prompt_with_external_knowledge(
@@ -143,12 +141,11 @@ class Prompt:
         - Only choose from this list of valid outgoing links: {valid_links}
         - For each suggestion, include:
           * next_page (must be exactly one of the valid_links)
-          * reason (why this might be useful)
           * rating (1–10, higher = more promising)
         {avoid_block} 
         Here is some additional external knowledge that might help you make better decisions:
         {external_knowledge}, you can use this information to inform your suggestions.
-
-        Return your answer strictly following the JSON schema provided.
+        Return your answer strictly following this JSON schema:
+        {self._get_response_json_schema_blind()}
         """
 

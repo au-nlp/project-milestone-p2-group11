@@ -1,5 +1,9 @@
 import json
 import torch
+import time
+import os
+import csv
+import functools
 import logging
 import numpy as np
 import torch.nn.functional as F
@@ -26,6 +30,30 @@ PRICE_MAPPER = {
 }
 
 
+def digitalocean_retry(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        delays = [30, 60, 120]
+        for attempt, delay in enumerate(delays, start=1):
+            print(f'Attempt {attempt} starting.')
+            try:
+                result = func(*args, **kwargs)
+                print(f'Succeeded on attempt {attempt}.')
+                return result
+            except Exception as e:
+                print(f'Attempt {attempt} failed: {e}.\n')
+
+                # If we've exhausted retries, re-raise
+                if attempt == len(delays):
+                    raise RuntimeError(
+                        f'Failed after {attempt} retries.'
+                    ) from e
+
+                print(f'Retrying in {delay}s (next attempt {attempt+1}/{len(delays)})')
+                time.sleep(delay)
+    return wrapper
+
+
 class Agent:
     def __init__(self, config: Config, link_mappings) -> None:
         self.link_mappings = link_mappings
@@ -34,6 +62,7 @@ class Agent:
         self.base_branch = config.base_branch
         self.max_depth = config.max_depth
         self.debug = config.debug
+        self.results_folder = config.results_folder
 
         if self.debug:
             self.client = Groq(api_key=config.groq_api_key)
@@ -44,10 +73,10 @@ class Agent:
             )
 
         self.generate_func = self.client.chat.completions.create
-        self.generate_func = self.client.chat.completions.create
         self.prompt = Prompt(config=config)
         self.semantic_analyser = SemanticAnalyser(config=config)
 
+    @digitalocean_retry
     def _ask_llm(self,prompt: str) -> tuple[ChatCompletionMessage, int, int]:
         result = self.generate_func(
             **self.prompt.get_config(debug=self.debug), messages=[{'role': 'user', 'content': prompt}]
@@ -55,6 +84,7 @@ class Agent:
         choices = result.choices[0].message
         return choices, result.usage.prompt_tokens, result.usage.completion_tokens
 
+    @digitalocean_retry
     def _ask_llm_blind(self, prompt: str) -> tuple[ChatCompletionMessage, int, int]:
         result = self.generate_func(
             **self.prompt.get_config(debug=self.debug, is_blind=True), messages=[{'role': 'user', 'content': prompt}]
@@ -110,8 +140,7 @@ class Agent:
         text, input_tokens, output_tokens = self._ask_llm(prompt)
         return self._parse_response(text), input_tokens, output_tokens
 
-    def navigate_tot(self, start: str, goal: str,with_memory:bool = False) -> tuple[list[str] | None, int, int]:
-        visited = set([start])
+    def navigate_tot(self, start: str, goal: str, with_memory:bool = False) -> tuple[list[str] | None, int, int]:
         incomplete_paths = [[start]]
         best_path, best_score = None, -1
 
@@ -127,6 +156,7 @@ class Agent:
 
                 links = self.link_mappings[current]
                 if not links:
+                    print(f'[navigate_tot] No links found for {current}')
                     continue
                 if with_memory:
                     memory = path[:-1] if len(path) > 1 else []
@@ -139,6 +169,7 @@ class Agent:
 
                 # if LLM gives no valid moves, skip this branch
                 if not llm_guesses:
+                    print(f'[navigate_tot] LLM returned no guesses for {current} → skipping path {path}')
                     continue
 
                 scores = torch.tensor([float(r) for _, r in llm_guesses])
@@ -149,8 +180,7 @@ class Agent:
 
                 for idx in chosen:
                     nxt = llm_guesses[idx][0]
-                    if nxt not in visited:
-                        visited.add(nxt)
+                    if nxt not in path:
                         new_incomplete_paths.append(path + [nxt])
 
                         # track highest score
@@ -162,6 +192,8 @@ class Agent:
                 break
             incomplete_paths = new_incomplete_paths
 
+        if best_path is None:
+            print(f'[navigate_tot] No valid path found from {start} to {goal}. Returning None.')
         return best_path, total_input_tokens, total_output_tokens
 
     def navigate_link_aware(self, start: str, goal: str, with_memory:bool = False) -> tuple[list[str] | None, int, int]:
@@ -347,10 +379,7 @@ class Agent:
         result = path if path[-1] == goal else best_path
         return result, total_input_tokens, total_output_tokens
 
-    def generate_llm_paths(self,df: pd.DataFrame) -> pd.DataFrame:
-        all_paths = []
-        # for the result, generate paths using multiple strategies, store them in each column
-        #if error in parsing, None for path
+    def generate_llm_paths(self, df: pd.DataFrame):
         def safe_call(func, *args, **kwargs):
             try:
                 return func(*args, **kwargs)
@@ -358,28 +387,100 @@ class Agent:
                 print(e)
                 return None
 
-        for _, row in tqdm(df.iterrows(), total=len(df)):
-            start = row['start']
-            goal = row['destination']
+        os.makedirs(self.results_folder, exist_ok=True)
+        out_path = os.path.join(self.results_folder, 'llm_paths.csv')
+        write_header = not os.path.exists(out_path)
 
-            path_blind = safe_call(self.navigate_blind,start, goal)
-            path_link_aware = safe_call(self.navigate_link_aware,start, goal)
-            path_with_external_info = safe_call(self.navigate_with_external_info,start, goal)
-            path_tot = safe_call(self.navigate_tot,start, goal)
-            all_paths.append({
-                'start': start,
-                'destination': goal,
-                'path_blind': path_blind,
-                'path_link_aware': path_link_aware,
-                'path_with_external_info': path_with_external_info,
-                'path_tot': path_tot,
-            })
+        # trying to recover from previous generation
+        processed_ids = set()
+        total_output = total_input = 0
+        if not write_header:
+            try:
+                existing = pd.read_csv(out_path)
+                processed_ids = set(existing['id'])
+                print(f'Found {len(processed_ids)} already completed pairs.')
 
-        return pd.DataFrame(all_paths)
+                total_input += existing[
+                    ['blind_input_tokens', 'link_aware_input_tokens', 'external_info_input_tokens', 'tot_input_tokens']
+                ].sum().sum()
+                total_output += existing[
+                    ['blind_output_tokens', 'link_aware_output_tokens', 'external_info_output_tokens', 'tot_output_tokens']
+                ].sum().sum()
+
+                self.log_cost(total_input, total_output)
+
+            except Exception as e:
+                print(f'Could not read existing file: {e}')
+        
+        # appending to the result file
+        with open(out_path, 'a', encoding='utf-8', newline='') as f:
+            writer = csv.writer(f)
+
+            if write_header:
+                writer.writerow(
+                    [
+                        'id', 'start', 'destination', 'blind_paths', 'blind_input_tokens', 'blind_output_tokens',
+                        'link_aware_paths', 'link_aware_input_tokens', 'link_aware_output_tokens',
+                        'external_info_paths', 'external_info_input_tokens', 'external_info_output_tokens',
+                        'tot_paths', 'tot_input_tokens', 'tot_output_tokens',
+                    ]
+                )
+
+            for _, row in tqdm(df.iterrows(), total=len(df)):  # main generation logic
+                id = row['id']
+                if id in processed_ids:  # skip already generated id
+                    print(f'Skipping {id}, since it has already been generated.')
+                    continue
+
+                start_now = time.time()
+
+                start = row['start']
+                goal = row['destination']
+                rep_idx = row['replicate_idx']
+
+                print(f'start: {start}, destination: {goal} (replicate: {rep_idx})')
+
+                path_blind = safe_call(self.navigate_blind, start, goal)
+                path_link_aware = safe_call(self.navigate_link_aware, start, goal)
+                path_with_external_info = safe_call(
+                    self.navigate_with_external_info, start, goal
+                )
+                path_tot = safe_call(self.navigate_tot, start, goal)
+
+                def serialize(result):
+                    if result is None:
+                        return '', 0, 0
+                    p, tin, tout = result
+                    p_str = json.dumps(p if p is not None else [])  # store as JSON string
+                    return p_str, tin, tout
+
+                b_p, b_in, b_out = serialize(path_blind)
+                la_p, la_in, la_out = serialize(path_link_aware)
+                ei_p, ei_in, ei_out = serialize(path_with_external_info)
+                tot_p, tot_in, tot_out = serialize(path_tot)
+
+                total_output += b_out + la_out + ei_out + tot_out
+                total_input += b_in + la_in + ei_in + tot_in
+                print(
+                    f'total input: {total_input} tokens so far\n'
+                    f'total output: {total_output} tokens so far'
+                )
+                self.log_cost(total_input, total_output)
+                end_time = time.time()
+
+                elapsed_time = end_time - start_now
+                print(f'elapsed time: {elapsed_time:.2f} seconds')
+
+                writer.writerow(
+                    [
+                        id, start, goal, b_p, b_in, b_out, la_p, la_in,
+                        la_out, ei_p, ei_in, ei_out, tot_p, tot_in, tot_out,
+                    ]
+                )
 
     def log_cost(self, total_input_tokens, total_output_tokens: int):
         price_info = PRICE_MAPPER.get(self.llm_config.model, {})
         input_price = price_info['input'] * total_input_tokens * 1e-6
         output_price = price_info['output'] * total_output_tokens * 1e-6
-        print(f'input price: {input_price:.2f}$, output price: {output_price:.2f}$')
+        print(f'So far input price: {input_price:.2f}$, output price: {output_price:.2f}$')
 
