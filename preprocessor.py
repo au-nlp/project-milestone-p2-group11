@@ -3,6 +3,7 @@ import numpy as np
 import csv
 import logging
 from collections import defaultdict, Counter
+import ast
 
 from config_local import Config
 import urllib.parse
@@ -282,6 +283,24 @@ class Preprocessor:
         # Drop cat_move col
         cat_shift_df_pairs.drop(columns="cat_move", inplace=True)
         return cat_shift_df_pairs
+
+    def clean_llm_paths(self, df: pd.DataFrame, col):
+        # Drop rows that have missing/empty path field
+        df = df[df[col].notna() & (df[col] != "")].copy()
+    
+        # Parse the paths to python list
+        def path_to_list(x):
+            return ast.literal_eval(x) if isinstance(x, str) else None
+
+        # Create col for converted lsit paths
+        df["path_list"] = df[col].apply(path_to_list)
+
+        # Remove rows with hallucinations ("none"/"None")
+        df = df[~df["path_list"].apply(lambda path: any(str(p).lower() == "none" for p in path))]
+    
+        # Remove unrelated cols
+        df = df[["id", "start", "destination", "path_list"]]
+        return df
 
     def get_pairs_for_experiment(self,df: pd.DataFrame, num_pairs: int) -> pd.DataFrame:
         """
