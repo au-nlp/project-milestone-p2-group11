@@ -10,8 +10,16 @@ from common import IOMixin
 from config_local import Config
 
 import seaborn as sns
-sns.color_palette("tab10")  #use same color palette as matplotlieb : categorical shifts
+sns.color_palette("tab10")  # Use same color palette as matplotlieb : categorical shifts plots
 
+# Define a fixed color mapping for the categorical shift plots
+cat_color_map = {
+    "Humans": "#1f77b4",
+    "One-shot": "#ff7f0e",
+    "CoT": "#2ca02c",
+    "CoT(KB)": "#d62728",
+    "ToT": "#9467bd"
+}
 
 class Visualizer(IOMixin):
     def __init__(self, config: Config) -> None:
@@ -208,95 +216,154 @@ class Visualizer(IOMixin):
         #fig.show() # Uncomment and run for an interactive sankey diagram visualization
 
     def visualize_categorical_shifts_barchart_comparison(self, avg_shifts_path, avg_shifts_step, labels):
-        x = np.arange(len(labels))
-        width = 0.40  
-        fig, ax = plt.subplots(figsize=(12, 6))
-        rects1 = ax.bar(x - width/2, avg_shifts_path, width, label='Humans')
-        rects2 = ax.bar(x + width/2, avg_shifts_step, width, label='LLMs')
-        ax.set_ylabel('No. of categorical shifts')
-        ax.set_title('Humans vs LLMs: Average Categorical Shifts (Navigation Path)')
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels)
-        ax.legend()
-        plt.show()
+        # Sort navigation paths shifts
+        avg_shifts_path_sorted, labels_path_sorted = zip(*sorted(zip(avg_shifts_path, labels)))
+        x_path = np.arange(len(labels_path_sorted)) # convert labels_path_sorted to Numpy array
+        
+        # Sort navigation steps shifts
+        avg_shifts_step_sorted, labels_step_sorted = zip(*sorted(zip(avg_shifts_step, labels)))
+        x_step = np.arange(len(labels_step_sorted)) # convert labels_step_sorted to Numpy array
 
-    def visualize_categorical_shifts_violin_comparison(self, shifts_per_path_humans, shifts_per_path_llms, labels):
+        # Bar width
+        width = 0.60
+    
+        # Map each label to its pre-defined color
+        colors_path = [cat_color_map[label] for label in labels_path_sorted]
+        colors_step = [cat_color_map[label] for label in labels_step_sorted]
+
+        # Plot
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    
+        # Left plot: navigation paths shifts
+        ax1.bar(x_path, avg_shifts_path_sorted, width, color=colors_path)
+        ax1.set_ylabel('Average categorical shift')
+        ax1.set_title('Average Categorical Shifts per Navigation Path')
+        ax1.set_xticks(x_path)
+        ax1.set_xticklabels(labels_path_sorted, rotation=45, ha='right')
+    
+        # Right plot: navigation steps shifts
+        rects2 = ax2.bar(x_step, avg_shifts_step_sorted, width, color=colors_step)
+        ax2.set_ylabel('Proportion of consecutive article pairs with shift')
+        ax2.set_title('Average Categorical Shifts per Step')
+        ax2.set_xticks(x_step)
+        ax2.set_xticklabels(labels_step_sorted, rotation=45, ha='right')
+        ax2.legend(rects2, labels_step_sorted, title="Player", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.tight_layout()
+        plt.show()
+ 
+    def visualize_categorical_shifts_violin_comparison(self, shifts_per_path_list, labels):
+        # Map each label to its pre-defined color
+        colors = [cat_color_map[label] for label in labels]
+
+        # Plot
         plt.figure(figsize=(12, 6))
-        sns.violinplot(data=[shifts_per_path_humans, shifts_per_path_llms])
-        plt.xticks([0, 1], labels)
+        sns.violinplot(data=shifts_per_path_list, palette=colors)
+        plt.xticks(range(len(labels)), labels)
         plt.ylabel('No. of categorical shifts')
         plt.title('Violin Chart of Categorical Shifts Distribution (Navigation Path)')
         plt.show()
-        
-    def visualize_categorical_shifts_focuses_violin_comparison(self, shifts_per_path_humans, shifts_per_path_llms, labels):
+
+    def visualize_categorical_shifts_focuses_violin_comparison(self, shifts_per_path_list, labels):
         fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-        # Humans
-        sns.violinplot(
-            x=[0] * len(shifts_per_path_humans),
-            y=shifts_per_path_humans,
-            ax=ax,
-            cut=0,
-            density_norm='width',
-            color=sns.color_palette("tab10")[0]
-        )
-        # LLMs 
-        sns.violinplot(
-            x=[1] * len(shifts_per_path_llms),
-            y=shifts_per_path_llms,
-            ax=ax,
-            cut=0,
-            density_norm='width',
-            color=sns.color_palette("tab10")[1]
-        )
+    
+        # Plot all violins at x-pos
+        for i, (shifts, label) in enumerate(zip(shifts_per_path_list, labels)):
+            sns.violinplot(
+                x=[i] * len(shifts),
+                y=shifts,
+                ax=ax,
+                cut=0,
+                density_norm='width',
+                color=cat_color_map[label]
+            )
+    
         ax.set_title('Violin Chart of Categorical Shift Distributions (Navigation Path)')
         ax.set_ylabel('No. of categorical shifts')
         ax.set_ylim(0, 35)
         ax.grid(axis='y', linestyle='-', color='gray', alpha=0.2)
         ax.set_yticks(list(np.arange(0, 16, 1)) + [15, 20, 25, 30, 35])
-        ax.set_xticks([0, 1])
-        ax.set_xticklabels([labels[0], labels[1]])
+        ax.set_xticks(list(range(len(labels))))
+        ax.set_xticklabels(labels, rotation=45, ha='right')
         plt.tight_layout()
         plt.show()
-
-    def visualize_categorical_shifts_scatterplot_comparison(self, df: pd.DataFrame):
-        plt.figure(figsize=(12,6))
+        
+    def visualize_categorical_shifts_scatterplot_comparison(self, shifts_per_path_list, labels):
+        # Map each label to its pre-defined color
+        colors = [cat_color_map[label] for label in labels]
+        
+        # Combine all shifts into a single DataFrame for seaborn
+        df_list = []
+        for shifts, label in zip(shifts_per_path_list, labels):
+            df_list.append(pd.DataFrame({
+                'Shifts_per_path': shifts,
+                'Group': [label]*len(shifts)
+            }))
+        df = pd.concat(df_list, ignore_index=True)
+    
+        plt.figure(figsize=(12, 6))
         sns.stripplot(
-            x='Group', 
-            y='Shifts_per_path', 
-            data=df, 
+            x='Group',
+            y='Shifts_per_path',
+            hue='Group',
+            data=df,
             jitter=0.35,
-            hue='Group', 
-            size=7,    
-            alpha=0.4
+            size=7,
+            alpha=0.4,
+            palette=colors,
+            dodge=False,
+            legend=False  # disable legend
         )
         plt.title('Scatterplot of Categorical Shift Distributions (Navigation Path)')
         plt.xlabel('')
         plt.ylabel('No. of categorical shifts')
         plt.ylim(0)
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
         plt.show()
 
-    def visualize_categorical_shifts_scatterplot_sidebyside_comparison(self, df: pd.DataFrame):
-        fig, axes = plt.subplots(1, 3, figsize=(18, 8), sharex=True)
+
+    def visualize_categorical_shifts_scatterplot_sidebyside_comparison(self, shifts_per_path_list, labels):
+        # Map each label to its pre-defined color
+        colors = [cat_color_map[label] for label in labels]
+        
+        # Combine all shifts into a single DataFrame for seaborn
+        df_list = []
+        for shifts, label in zip(shifts_per_path_list, labels):
+            df_list.append(pd.DataFrame({
+                'Shifts_per_path': shifts,
+                'Group': [label]*len(shifts)
+            }))
+        df = pd.concat(df_list, ignore_index=True)
+
+        # Plot
+        fig, axes = plt.subplots(1, 4, figsize=(18, 8), sharex=True)
         # Y axis scope for each sublot
-        y_limits = [None, 100, 50] 
-        titles = ['All datapoints', 'Path Lengths: 0-100', 'Path Lengths: 0-50']
-        # plot
-        for ax, ylim, title in zip(axes, y_limits, titles):
+        y_limits = [None, 50, 20, 8]
+        titles = ['All datapoints', 'Path Lengths: 0-100', 'Path Lengths: 0-50', 'Path Lengths: 0-20']
+        for i, (ax, ylim, title) in enumerate(zip(axes, y_limits, titles)):
             sns.stripplot(
-                x='Group', 
-                y='Shifts_per_path', 
-                data=df, 
-                jitter=0.35, 
-                hue='Group', 
-                size=7,    
+                x='Group',
+                y='Shifts_per_path',
+                data=df,
+                hue='Group',
+                palette=colors,
+                dodge=False,
+                jitter=0.35,
+                size=7,
+                alpha=0.4,
                 ax=ax,
-                alpha=0.4
+                legend=False
             )
-            ax.set_title(f'Categorical Shifts Distribution  ({title})')
-            ax.set_xlabel('')
-            ax.set_ylabel('No. of categorical shifts')
+            ax.set_title(f'Categorical Shifts Distribution ({title})')
+            ax.set_xlabel('')       # remove x-axis label
+            ax.set_ylabel('No. of categorical shifts') 
+            # Hide y-axis ticks and labels for all except the first subplot
+            if i != 0:
+                ax.set_ylabel('')
             ax.set_ylim(0, ylim)
             ax.grid(axis='y', linestyle='-', color='gray', alpha=0.2)
+            ax.set_xticks(range(len(labels)))
+            ax.set_xticklabels(labels, rotation=45, ha='right')
         plt.tight_layout()
         plt.show()
 
