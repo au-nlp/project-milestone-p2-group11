@@ -485,7 +485,7 @@ class Visualizer(IOMixin):
             paths = groups[name]
             # Compute lengths
             lengths = [len(p) for p in paths]
-            # Limit humans paths to 10
+            # Limit humans paths to 11
             if name == "Humans":
                 lengths = [min(l, 11) for l in lengths]
             data.append(lengths)
@@ -505,6 +505,45 @@ class Visualizer(IOMixin):
         plt.tight_layout()
         plt.show()
         
+    def plot_path_length_distribution_horizontal(self, groups):
+        plt.figure(figsize=(10, 6))
+
+        # Hardcoded colors
+        colors = {
+            "Humans": "#1f77b4",
+            "One-shot": "#ff7f0e",
+            "CoT": "#2ca02c",
+            "CoT(KB)": "#d62728",
+            "ToT": "#9467bd"
+        }
+
+        players = list(groups.keys())
+        data = []
+
+        for name in players:
+            paths = groups[name]
+            lengths = [len(p) for p in paths]
+            # limit Humans to 11
+            if name == "Humans":
+                lengths = [min(l, 11) for l in lengths]  
+            data.append(lengths)
+
+        # Horizontal violin plot
+        parts = plt.violinplot(data, showmeans=True, showmedians=True, vert=False)
+
+        # Color violins
+        for i, pc in enumerate(parts['bodies']):
+            pc.set_facecolor(colors.get(players[i], "#888888"))
+            pc.set_edgecolor('black')
+            pc.set_alpha(0.6)
+
+        plt.yticks(np.arange(1, len(players)+1), players)
+        plt.xlabel("Path Length (number of steps)")
+        plt.title("Distribution of Path Lengths per Player (Horizontal)")
+        plt.grid(True, linestyle="--", alpha=0.3)
+        plt.tight_layout()
+        plt.show()
+
     def visualize_ratings_distribution(self, df: pd.DataFrame, filename: str):
         fig, _ = plt.subplots(figsize=(12, 8))
         df['rating'].hist(bins=50, alpha=0.5, label='finished', color='blue', range=(0,5))
