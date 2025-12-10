@@ -4,6 +4,7 @@ import csv
 import logging
 from collections import defaultdict, Counter
 import ast
+import random
 
 from config_local import Config
 import urllib.parse
@@ -485,6 +486,53 @@ class Preprocessor:
             mean_shifts[name] = np.nanmean(resampled_all, axis=0)
 
         return mean_shifts
+    
+    def get_human_llm_match_samples(self, df_human, llm_dfs, max_len=11, seed=42):
+        random.seed(seed)
+    
+        # Get finished paths for humans and change seperator to comma
+        human_paths = df_human[df_human["source"] == "finished"]["path"].str.split(";").tolist()
+    
+        # Combine LLM data on path_list col
+        llm_paths = []
+        for llm_df in llm_dfs:
+            llm_paths.extend(llm_df['path_list'].tolist())
+    
+        # Get uique LLM start/dest pairs
+        llm_pairs = set((p[0], p[-1]) for p in llm_paths)
+    
+        # Filter the human paths to only include LLM start/dest pairs and constrain max length to 11 (same as the prompts for LLM paths generation)
+        human_paths_filt = [
+            path for path in human_paths
+            if (path[0], path[-1]) in llm_pairs and len(path) <= max_len
+        ]
+    
+        # Sam balanced samples
+        hum_sample_list = []
+        llm_sample_list = []
+
+        # Align and balance 
+        for pair in llm_pairs:
+            h_paths = [p for p in human_paths_filt if (p[0], p[-1]) == pair]
+            l_paths = [p for p in llm_paths if (p[0], p[-1]) == pair]
+            n_sample = min(len(h_paths), len(l_paths))
+            if n_sample > 0:
+                hum_sample_list.extend(random.sample(h_paths, n_sample))
+                llm_sample_list.extend(random.sample(l_paths, n_sample))
+    
+        # Verify all pairs are balanced
+        human_check = Counter((p[0], p[-1]) for p in hum_sample_list)
+        llm_check = Counter((p[0], p[-1]) for p in llm_sample_list)
+        mismatches = [(pair, human_check[pair], llm_check[pair])
+                      for pair in human_check
+                      if human_check[pair] != llm_check[pair]]
+        
+        # Check to ensure we dont have created biased data
+        assert not mismatches, f"Mismatch found for pairs: {mismatches}"
+        
+        # Return balanced samples (current only hum_sample_list is used in main.ipynb)
+        return hum_sample_list, llm_sample_list
+        
 
     def compute_stepwise_mean_similarity(self, groups, article_to_idx, embeddings):
         def path_stepwise_similarity(path):
