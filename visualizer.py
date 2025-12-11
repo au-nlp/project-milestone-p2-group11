@@ -12,19 +12,20 @@ from config_local import Config
 import seaborn as sns
 sns.color_palette("tab10")  # Use same color palette as matplotlieb : categorical shifts plots
 
-# Define a fixed color mapping for the categorical shift plots
-cat_color_map = {
-    "Humans": "#1f77b4",
-    "One-shot": "#ff7f0e",
-    "CoT": "#2ca02c",
-    "CoT(KB)": "#d62728",
-    "ToT": "#9467bd"
-}
 
 class Visualizer(IOMixin):
     def __init__(self, config: Config) -> None:
         super().__init__(config.results_folder)
         self.config = config
+
+        # Hardcoded colors
+        self.colors = {
+            "Humans": "#1f77b4",
+            "One-shot": "#ff7f0e",
+            "CoT": "#2ca02c",
+            "CoT(KB)": "#d62728",
+            "ToT": "#9467bd"
+        }
 
     def visualize_top_k(self, df: pd.DataFrame, filename: str):
         df['path_label'] = df['start'] + ' -> ' + df['destination']
@@ -176,7 +177,7 @@ class Visualizer(IOMixin):
         plt.show()
         fig.savefig(self.gen_output_path(filename), dpi=300)
 
-    def visualize_sankey_plot(self, cat_shift_df_pairs: pd.DataFrame, filename, start_cat, end_cat: str):
+    def visualize_sankey_plot(self, cat_shift_df_pairs: pd.DataFrame, filename, start_cat, end_cat: str, label):
         # Sankey diagram
         # Reference: https://plotly.com/python/sankey-diagram/
         # Render method
@@ -206,7 +207,7 @@ class Visualizer(IOMixin):
 
         # Layout
         fig.update_layout(
-            title_text=f"Categorical drift from '{start_cat}' -> '{end_cat}'",
+            title_text=f"Categorical Shifts from '{start_cat}' to '{end_cat}' Along Navigation Paths for {label}",
             height=700,
             width=1180,
         )
@@ -231,8 +232,8 @@ class Visualizer(IOMixin):
         width = 0.60
     
         # Map each label to its pre-defined color
-        colors_path = [cat_color_map[label] for label in labels_path_sorted]
-        colors_step = [cat_color_map[label] for label in labels_step_sorted]
+        colors_path = [self.colors[label] for label in labels_path_sorted]
+        colors_step = [self.colors[label] for label in labels_step_sorted]
 
         # Plot
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
@@ -256,7 +257,7 @@ class Visualizer(IOMixin):
  
     def visualize_categorical_shifts_violin_comparison(self, shifts_per_path_list, labels):
         # Map each label to its pre-defined color
-        colors = [cat_color_map[label] for label in labels]
+        colors = [self.colors[label] for label in labels]
 
         # Plot
         plt.figure(figsize=(12, 6))
@@ -277,7 +278,7 @@ class Visualizer(IOMixin):
                 ax=ax,
                 cut=0,
                 density_norm='width',
-                color=cat_color_map[label]
+                color=self.colors[label]
             )
     
         ax.set_title('Violin Chart of Categorical Shift Distributions (Navigation Path)')
@@ -292,7 +293,7 @@ class Visualizer(IOMixin):
         
     def visualize_categorical_shifts_scatterplot_comparison(self, shifts_per_path_list, labels):
         # Map each label to its pre-defined color
-        colors = [cat_color_map[label] for label in labels]
+        colors = [self.colors[label] for label in labels]
         
         # Combine all shifts into a single DataFrame for seaborn
         df_list = []
@@ -327,7 +328,7 @@ class Visualizer(IOMixin):
 
     def visualize_categorical_shifts_scatterplot_sidebyside_comparison(self, shifts_per_path_list, labels):
         # Map each label to its pre-defined color
-        colors = [cat_color_map[label] for label in labels]
+        colors = [self.colors[label] for label in labels]
         
         # Combine all shifts into a single DataFrame for seaborn
         df_list = []
@@ -373,15 +374,6 @@ class Visualizer(IOMixin):
     def visualize_categorical_shifts_mean_stepwise(self, mean_shifts_dict):
         plt.figure(figsize=(12, 6))
     
-        # Hardcoded colors
-        colors = {
-            "Humans": "#1f77b4",
-            "One-shot": "#ff7f0e",
-            "CoT": "#2ca02c",
-            "CoT(KB)": "#d62728",
-            "ToT": "#9467bd"
-        }
-    
         # Counter to track all 1.0 lines
         all_ones_counter = 0
         jitter_step = 0.0019  
@@ -399,54 +391,67 @@ class Visualizer(IOMixin):
                 offset *= 1 if all_ones_counter % 2 else -1  # alternate 
             
                 values_to_plot = values_to_plot.copy() + offset
-                plt.plot(progress_axis, values_to_plot, linewidth=1.8, label=name, color=colors[name])
+                plt.plot(progress_axis, values_to_plot, linewidth=1.8, label=name, color=self.colors[name])
             
                 all_ones_counter += 1
             else:
-                plt.plot(progress_axis, values_to_plot, linewidth=1.8, label=name, color=colors[name])
+                plt.plot(progress_axis, values_to_plot, linewidth=1.8, label=name, color=self.colors[name])
                 
-        plt.xlabel("Normalized Progress (0–1)")
-        plt.ylabel("Mean Categorical Shift Probability")
-        plt.title("Normalized Progress-over-Path: Stepwise Mean Categorical Shifts")
+        plt.xlabel("Normalized Progress (0–1) for Start → Destination")
+        plt.ylabel("Stepwise Mean Categorical Shifts")
+        plt.title("Stepwise Mean Categorical Shifts Along Normalized Paths")
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.legend()
         plt.tight_layout()
         plt.show()
 
     def visualize_stepwise_mean_similarity(self, mean_similarity, progress_axis):
-        # Hardcoded colors
-        colors = {
-            "Humans": "#1f77b4",
-            "One-shot": "#ff7f0e",
-            "CoT": "#2ca02c",
-            "CoT(KB)": "#d62728",
-            "ToT": "#9467bd"
-        }
-    
         plt.figure(figsize=(12, 6))
     
         for name, values in mean_similarity.items():
-            plt.plot(progress_axis, values, linewidth=2, label=name, color=colors[name])
+            plt.plot(progress_axis, values, linewidth=2, label=name, color=self.colors[name])
     
-        plt.xlabel("Normalized Progress (0–1)")
+        plt.xlabel("Normalized Progress (0–1) for Start → Destination")
         plt.ylabel("Mean Semantic Similarity")
-        plt.title("Stepwise Mean Semantic Similarity Along Paths")
+        plt.title("Mean Semantic Similarity Along Normalized Paths")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.tight_layout()
         plt.show()
 
+    def visualize_stepwise_mean_information_gain(self, information_gains, progress_axis, num_bins=10):
+        players = information_gains.keys()
+
+        x_bins = np.linspace(0, 1, num_bins)
+        x = np.arange(num_bins)  # positions for grouped bars
+
+        total_groups = len(players)
+        bar_width = 0.6 / total_groups
+        offsets = np.linspace(-((total_groups - 1) / 2) * bar_width, ((total_groups - 1) / 2) * bar_width, total_groups)
+
+        plt.figure(figsize=(12, 6))
+        bin_idx = np.digitize(progress_axis, x_bins) - 1
+
+        for i, name in enumerate(players):
+            vectors = information_gains[name]
+
+            vals = np.zeros(num_bins)
+            for b in range(num_bins):
+                vals[b] = np.mean(vectors[bin_idx == b])
+
+            plt.bar(x + offsets[i], vals, width=bar_width, label=name, color=self.colors[name], alpha=0.85)
+
+        plt.xticks(x, [f'{p:.2f}' for p in x_bins], rotation=0)
+        plt.xlabel('Normalized Progress (0–1) for Start → Destination')
+        plt.ylabel('Stepwise Mean Information Gain')
+        plt.title('Stepwise Mean Information Gain Along Normalized Paths')
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.4, axis='y')
+        plt.tight_layout()
+        plt.show()
+
     def plot_stepwise_similarity_violin(self, stepwise_similarity_flat):
         plt.figure(figsize=(10, 6))
-
-        # Hardcoded colors
-        colors = {
-            "Humans": "#1f77b4",
-            "One-shot": "#ff7f0e",
-            "CoT": "#2ca02c",
-            "CoT(KB)": "#d62728",
-            "ToT": "#9467bd"
-        }
 
         players = list(stepwise_similarity_flat.keys())
         data = [stepwise_similarity_flat[p] for p in players]
@@ -455,7 +460,7 @@ class Visualizer(IOMixin):
 
         # Color each violin
         for i, pc in enumerate(parts['bodies']):
-            pc.set_facecolor(colors.get(players[i], "#888888"))  # fallback
+            pc.set_facecolor(self.colors.get(players[i], "#888888"))  # fallback
             pc.set_edgecolor('black')
             pc.set_alpha(0.6)
 
@@ -468,15 +473,6 @@ class Visualizer(IOMixin):
 
     def plot_path_length_distribution(self, groups):
         plt.figure(figsize=(10, 6))
-
-        # Hardcoded colors
-        colors = {
-            "Humans": "#1f77b4",
-            "One-shot": "#ff7f0e",
-            "CoT": "#2ca02c",
-            "CoT(KB)": "#d62728",
-            "ToT": "#9467bd"
-        }
 
         players = list(groups.keys())
         data = []
@@ -494,7 +490,7 @@ class Visualizer(IOMixin):
 
         # Color violins
         for i, pc in enumerate(parts['bodies']):
-            pc.set_facecolor(colors.get(players[i], "#888888"))
+            pc.set_facecolor(self.colors.get(players[i], "#888888"))
             pc.set_edgecolor('black')
             pc.set_alpha(0.6)
 
@@ -507,15 +503,6 @@ class Visualizer(IOMixin):
         
     def plot_path_length_distribution_horizontal(self, groups):
         plt.figure(figsize=(10, 6))
-
-        # Hardcoded colors
-        colors = {
-            "Humans": "#1f77b4",
-            "One-shot": "#ff7f0e",
-            "CoT": "#2ca02c",
-            "CoT(KB)": "#d62728",
-            "ToT": "#9467bd"
-        }
 
         players = list(groups.keys())
         data = []
@@ -533,13 +520,13 @@ class Visualizer(IOMixin):
 
         # Color violins
         for i, pc in enumerate(parts['bodies']):
-            pc.set_facecolor(colors.get(players[i], "#888888"))
+            pc.set_facecolor(self.colors.get(players[i], "#888888"))
             pc.set_edgecolor('black')
             pc.set_alpha(0.6)
 
         plt.yticks(np.arange(1, len(players)+1), players)
-        plt.xlabel("Path Length (number of steps)")
-        plt.title("Distribution of Path Lengths per Player (Horizontal)")
+        plt.xlabel("Path Length (No. of steps)")
+        plt.title("Distribution of Path Lengths per Player")
         plt.grid(True, linestyle="--", alpha=0.3)
         plt.tight_layout()
         plt.show()
