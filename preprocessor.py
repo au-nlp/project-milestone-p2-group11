@@ -544,12 +544,39 @@ class Preprocessor:
                     sim = cosine_similarity(emb_a, emb_b)[0, 0]
                     sims.append(sim)
             return sims
+
+        def path_stepwise_information_gain(path):
+            if path is None or len(path) == 0:
+                return []
+
+            # ensure path is a list of strings
+            path = [str(x) for x in path]
+
+            start_title, dest_title = path[0], path[-1]
+            if start_title not in article_to_idx or dest_title not in article_to_idx:
+                return []
+
+            emb_start = embeddings[article_to_idx[start_title]].reshape(1, -1)
+            emb_dest  = embeddings[article_to_idx[dest_title]].reshape(1, -1)
+            sims = []
+            for curr_title in path[:-1]:
+                if curr_title not in article_to_idx:
+                    continue
+                emb_curr = embeddings[article_to_idx[curr_title]].reshape(1, -1)
+                sim_start = cosine_similarity(emb_curr, emb_start)[0, 0]
+                sim_dest  = cosine_similarity(emb_curr, emb_dest)[0, 0]
+                sims.append(sim_dest - sim_start)
+            return sims
     
-        # compute stepwise similarities for each plauer
+        # compute stepwise similarities for each player
         stepwise_similarity = {}
+        stepwise_information_gains = {}
         for name, paths in groups.items():
             all_sims = [path_stepwise_similarity(p) for p in paths]
             stepwise_similarity[name] = all_sims
+
+            all_information_gains = [path_stepwise_information_gain(p) for p in paths]
+            stepwise_information_gains[name] = all_information_gains
     
         # Resample to same progress axis + compute mean similarity
         progress_axis = np.linspace(0, 1)
@@ -565,8 +592,20 @@ class Preprocessor:
                 resampled.append(f(progress_axis))
             resampled = np.array(resampled)
             mean_similarity[name] = np.nanmean(resampled, axis=0)
+
+        mean_information_gains = {}
+        for name, vectors in stepwise_information_gains.items():
+            resampled = []
+            for v in vectors:
+                if len(v) < 1:
+                    continue
+                x = np.linspace(0, 1, len(v))
+                f = interp1d(x, v, kind="nearest", bounds_error=False, fill_value=np.nan)
+                resampled.append(f(progress_axis))
+            resampled = np.array(resampled)
+            mean_information_gains[name] = np.nanmean(resampled, axis=0)
     
-        return mean_similarity, progress_axis, stepwise_similarity
+        return mean_similarity, progress_axis, stepwise_similarity, mean_information_gains
 
 
     def compute_flat_stepwise_similarity(self, groups, article_to_idx, embeddings):
