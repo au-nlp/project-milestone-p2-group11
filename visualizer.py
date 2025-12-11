@@ -176,7 +176,7 @@ class Visualizer(IOMixin):
         plt.show()
         fig.savefig(self.gen_output_path(filename), dpi=300)
 
-    def visualize_sankey_plot(self, cat_shift_df_pairs: pd.DataFrame, filename, start_cat, end_cat: str):
+    def visualize_sankey_plot(self, cat_shift_df_pairs: pd.DataFrame, filename, start_cat, end_cat: str, label):
         # Sankey diagram
         # Reference: https://plotly.com/python/sankey-diagram/
         # Render method
@@ -206,7 +206,7 @@ class Visualizer(IOMixin):
 
         # Layout
         fig.update_layout(
-            title_text=f"Categorical drift from '{start_cat}' -> '{end_cat}'",
+            title_text=f"Categorical Shifts from '{start_cat}' to '{end_cat}' Along Navigation Paths for {label}",
             height=700,
             width=1180,
         )
@@ -405,9 +405,9 @@ class Visualizer(IOMixin):
             else:
                 plt.plot(progress_axis, values_to_plot, linewidth=1.8, label=name, color=colors[name])
                 
-        plt.xlabel("Normalized Progress (0–1)")
-        plt.ylabel("Mean Categorical Shift Probability")
-        plt.title("Normalized Progress-over-Path: Stepwise Mean Categorical Shifts")
+        plt.xlabel("Normalized Progress (0–1) for Start → Destination")
+        plt.ylabel("Stepwise Mean Categorical Shifts")
+        plt.title("Stepwise Mean Categorical Shifts Along Normalized Paths")
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.legend()
         plt.tight_layout()
@@ -428,9 +428,9 @@ class Visualizer(IOMixin):
         for name, values in mean_similarity.items():
             plt.plot(progress_axis, values, linewidth=2, label=name, color=colors[name])
     
-        plt.xlabel("Normalized Progress (0–1)")
+        plt.xlabel("Normalized Progress (0–1) for Start → Destination")
         plt.ylabel("Mean Semantic Similarity")
-        plt.title("Stepwise Mean Semantic Similarity Along Paths")
+        plt.title("Mean Semantic Similarity Along Normalized Paths")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.tight_layout()
@@ -538,8 +538,8 @@ class Visualizer(IOMixin):
             pc.set_alpha(0.6)
 
         plt.yticks(np.arange(1, len(players)+1), players)
-        plt.xlabel("Path Length (number of steps)")
-        plt.title("Distribution of Path Lengths per Player (Horizontal)")
+        plt.xlabel("Path Length (No. of steps)")
+        plt.title("Distribution of Path Lengths per Player")
         plt.grid(True, linestyle="--", alpha=0.3)
         plt.tight_layout()
         plt.show()
