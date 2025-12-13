@@ -146,6 +146,6 @@ class Prompt:
         Here is some additional external knowledge that might help you make better decisions:
         {external_knowledge}, you can use this information to inform your suggestions.
         Return your answer strictly following this JSON schema:
-        {self._get_response_json_schema_blind()}
+        {self._get_response_json_schema()}
         """
 
