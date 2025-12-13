@@ -356,8 +356,8 @@ class Preprocessor:
 
         result = pd.concat(selected_pairs, ignore_index=True)
 
-        # stack 3 times
-        result = pd.concat([result] * 3, ignore_index=True)
+        # stack 6 times
+        result = pd.concat([result] * 6, ignore_index=True)
 
         # add replicate index: 0, 1, 2
         result['replicate_idx'] = result.groupby(['start', 'destination']).cumcount()
