@@ -623,3 +623,25 @@ class Preprocessor:
             stepwise_similarity_flat[name] = all_sims
 
         return stepwise_similarity_flat
+
+    def resolve_llm_path(self,llm_path:pd.DataFrame):
+        llm_df = llm_path.copy()
+        def path_to_list(x):
+            return ast.literal_eval(x) if isinstance(x, str) else None
+
+        def is_valid_path(path, dest):
+            return path is not None and len(path) > 0 and path[-1] == dest
+        llm_path_stats = llm_df.copy()
+        llm_path_stats['link_aware_paths'] = llm_path_stats['link_aware_paths'].apply(path_to_list)
+        llm_path_stats['blind_paths'] = llm_path_stats['blind_paths'].apply(path_to_list)
+        llm_path_stats['external_info_paths'] = llm_path_stats['external_info_paths'].apply(path_to_list)
+        llm_path_stats['tot_paths'] = llm_path_stats['tot_paths'].apply(path_to_list)
+        llm_path_stats['link_aware_success'] = llm_path_stats.apply(
+            lambda row: is_valid_path(row['link_aware_paths'], row['destination']), axis=1)
+        llm_path_stats['blind_success'] = llm_path_stats.apply(
+            lambda row: is_valid_path(row['blind_paths'], row['destination']), axis=1)
+        llm_path_stats['external_info_success'] = llm_path_stats.apply(
+            lambda row: is_valid_path(row['external_info_paths'], row['destination']), axis=1)
+        llm_path_stats['tot_success'] = llm_path_stats.apply(
+            lambda row: is_valid_path(row['tot_paths'], row['destination']), axis=1)
+        return llm_path_stats
