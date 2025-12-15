@@ -645,3 +645,28 @@ class Preprocessor:
         llm_path_stats['tot_success'] = llm_path_stats.apply(
             lambda row: is_valid_path(row['tot_paths'], row['destination']), axis=1)
         return llm_path_stats
+
+    def check_valid_paths(self, df: pd.DataFrame, link_mappings: defaultdict):
+        columns = [
+            ('blind', 'blind_paths', 'blind_success'),
+            ('CoT', 'link_aware_paths', 'link_aware_success'),
+            ('CoT(KB)', 'external_info_paths', 'external_info_success'),
+            ('ToT', 'tot_paths', 'tot_success'),
+        ]
+
+        def is_valid_path(path):
+            if not path or not isinstance(path, list):
+                return False
+            for node in path:
+                if node not in link_mappings:
+                    return False
+            for a, b in zip(path, path[1:]):
+                if b not in link_mappings[a]:
+                    return False
+            return True
+
+        for method, path_col, success_col in columns:
+            total = sum(df[path_col].notna())
+            num_success = sum(df[success_col])
+            num_valid = sum(df[path_col].apply(is_valid_path))
+            print(f'Method: {method}, total paths generated: {total}, total successful paths: {num_success}, total valid paths: {num_valid}')
