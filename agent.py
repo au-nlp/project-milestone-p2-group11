@@ -26,6 +26,10 @@ PRICE_MAPPER = {
     'openai-gpt-oss-20b': {
         'input': 0.05,
         'output': 0.45,
+    },
+    'openai-gpt-oss-120b': {
+        'input': 0.1,
+        'output': 0.7,
     }
 }
 
@@ -388,7 +392,7 @@ class Agent:
                 return None
 
         os.makedirs(self.results_folder, exist_ok=True)
-        out_path = os.path.join(self.results_folder, 'llm_paths.csv')
+        out_path = os.path.join(self.results_folder, 'llm_paths_oss_120b.csv')
         write_header = not os.path.exists(out_path)
 
         # trying to recover from previous generation

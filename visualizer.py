@@ -654,7 +654,7 @@ class Visualizer(IOMixin):
                 kind='bar',
                 ax=ax,
                 title=f'Time Usage by Difficulty - {model}',
-                ylabel='Average Time (tokens)',
+                ylabel='Average Token Usage',
                 xlabel='Difficulty Level',
                 legend=True
             )
