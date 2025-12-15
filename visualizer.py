@@ -5,7 +5,7 @@ from sklearn.manifold import TSNE
 import torch
 import plotly.graph_objects as go
 import plotly.io as pio
-
+import ast
 from common import IOMixin
 from config_local import Config
 
@@ -558,3 +558,211 @@ class Visualizer(IOMixin):
         plt.ylabel('Number of paths')
         plt.show()
         fig.savefig(self.gen_output_path(filename), dpi=300)
+
+    def visualize_success_rate(self,llm_df: pd.DataFrame, human_df:pd.DataFrame):
+        llm_path_stats = llm_df.copy()
+        agg_df = human_df.groupby(["start", "destination"]).agg(
+            success_count=("end", lambda x: x.notnull().sum()),
+            sample_count=("end", "size"),
+            path_length=("path", lambda x: x.dropna().map(len).mean())
+        ).reset_index()
+
+        # success rate
+        agg_df["success_rate"] = agg_df["success_count"] / agg_df["sample_count"]
+        # select all the  pairs in my llm_path_stats
+        human_success_rates = []
+        for idx, row in llm_path_stats.iterrows():
+            start = row['start']
+            destination = row['destination']
+            match = agg_df[(agg_df['start'] == start) & (agg_df['destination'] == destination)]
+            if not match.empty:
+                human_success_rates.append(match['success_rate'].values[0])
+            else:
+                human_success_rates.append(None)
+        llm_path_stats['human_success_rate'] = human_success_rates
+        llm_summary = llm_path_stats.groupby(['model', 'difficulty']).agg(
+            link_aware_success_rate=('link_aware_success', 'mean'),
+            external_success_rate=('external_info_success', 'mean'),
+            tot_success_rate=('tot_success', 'mean'),
+            count=('link_aware_success', 'size'),
+            human_success_rate_avg=('human_success_rate', 'mean')
+        ).reset_index()
+
+        models_order = ['oss_20b', 'oss_120b']
+
+        all_difficulties = sorted(llm_summary['difficulty'].dropna().unique().tolist(), key=lambda x: (str(x)))
+
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+
+        # human success rate not a bar, but a horizontal line for each difficulty level for each model
+        for i, model in enumerate(models_order):
+            ax = axes[i]
+            group = llm_summary[llm_summary['model'] == model]
+            if group.empty:
+                ax.axis('off')
+                continue
+            group.plot(
+                x='difficulty',
+                y=['link_aware_success_rate', 'external_success_rate', 'tot_success_rate'],
+                kind='bar',
+                ax=ax,
+                title=f'Success Rate by Difficulty - {model}',
+                ylabel='Success Rate',
+                xlabel='Difficulty Level',
+                ylim=(0, 1),
+                legend=True
+            )
+            for _, row in group.iterrows():
+                difficulty = row['difficulty']
+                human_rate = row['human_success_rate_avg']
+                if pd.notna(human_rate):
+                    ax.hlines(y=human_rate, xmin=all_difficulties.index(difficulty) - 0.4,
+                              xmax=all_difficulties.index(difficulty) + 0.4, colors='red', linestyles='dashed',
+                              label='Human Success Rate' if difficulty == all_difficulties[0] else "")
+
+            handles, labels = ax.get_legend_handles_labels()
+            new_labels = ['Human', 'CoT', 'CoT(KB)', 'ToT']
+            ax.legend(handles, new_labels)
+        plt.tight_layout()
+        plt.show()
+
+    def visualize_time_usage(self, llm_df: pd.DataFrame):
+        llm_path_stats = llm_df.copy()
+        llm_path_stats['blind_time'] = llm_path_stats['blind_input_tokens'] + llm_path_stats['blind_output_tokens']
+        llm_path_stats['link_aware_time'] = llm_path_stats['link_aware_input_tokens'] + llm_path_stats[
+            'link_aware_output_tokens']
+        llm_path_stats['external_time'] = llm_path_stats['external_info_input_tokens'] + llm_path_stats[
+            'external_info_output_tokens']
+        llm_path_stats['tot_time'] = llm_path_stats['tot_input_tokens'] + llm_path_stats['tot_output_tokens']
+        llm_time_summary = llm_path_stats.groupby(['model', 'difficulty']).agg(
+            blind_time_avg=('blind_time', 'mean'),
+            link_aware_time_avg=('link_aware_time', 'mean'),
+            external_time_avg=('external_time', 'mean'),
+            tot_time_avg=('tot_time', 'mean'),
+        ).reset_index()
+        fig, axes = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
+        models_order = ['oss_20b', 'oss_120b']
+        for i, model in enumerate(models_order):
+            ax = axes[i]
+            group = llm_time_summary[llm_time_summary['model'] == model]
+            if group.empty:
+                ax.axis('off')
+                continue
+            group.plot(
+                x='difficulty',
+                y=['blind_time_avg', 'link_aware_time_avg', 'external_time_avg', 'tot_time_avg'],
+                kind='bar',
+                ax=ax,
+                title=f'Time Usage by Difficulty - {model}',
+                ylabel='Average Time (tokens)',
+                xlabel='Difficulty Level',
+                legend=True
+            )
+            handles, labels = ax.get_legend_handles_labels()
+            new_labels = ['Blind','CoT', 'CoT(KB)', 'ToT']
+            ax.legend(handles, new_labels)
+        plt.tight_layout()
+        plt.show()
+
+    def visualize_path_length(self, llm_df: pd.DataFrame, human_df: pd.DataFrame):
+        def is_valid_path(path, dest):
+            return path is not None and len(path) > 0 and path[-1] == dest
+        def compute_steps(path, dest):
+            if is_valid_path(path, dest):
+                return len(path)
+            else:
+                return np.nan
+        llm_path_stats = llm_df.copy()
+        llm_path_stats['link_aware_steps'] = llm_path_stats.apply(
+            lambda row: compute_steps(row['link_aware_paths'], row['destination']), axis=1)
+        llm_path_stats['external_info_steps'] = llm_path_stats.apply(
+            lambda row: compute_steps(row['external_info_paths'], row['destination']), axis=1)
+        llm_path_stats['tot_steps'] = llm_path_stats.apply(lambda row: compute_steps
+        (row['tot_paths'], row['destination']), axis=1)
+        avg_steps_list = []
+        agg_df = human_df.groupby(["start", "destination"]).agg(
+            success_count=("end", lambda x: x.notnull().sum()),
+            sample_count=("end", "size"),
+            path_length=("path", lambda x: x.dropna().map(len).mean())
+        ).reset_index()
+        for idx, row in llm_path_stats.iterrows():
+            start = row['start']
+            destination = row['destination']
+            match = agg_df[(agg_df['start'] == start) & (agg_df['destination'] == destination)]
+            if not match.empty:
+                avg_steps_list.append(match['path_length'].values[0])
+            else:
+                avg_steps_list.append(None)
+        llm_path_stats['human_avg_steps'] = avg_steps_list
+        llm_length_summary = llm_path_stats.groupby(['model', 'difficulty']).agg(
+            link_aware_length_avg=('link_aware_steps', 'mean'),
+            external_length_avg=('external_info_steps', 'mean'),
+            tot_length_avg=('tot_steps', 'mean'),
+            human_avg_steps_avg=('human_avg_steps',
+                                 'mean')
+        ).reset_index()
+        models_order = ['oss_20b', 'oss_120b']
+        all_difficulties = sorted(llm_length_summary['difficulty'].dropna().unique().tolist(), key=lambda x: (str(x)))
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+        for i, model in enumerate(models_order):
+            ax = axes[i]
+            group = llm_length_summary[llm_length_summary['model'] == model]
+            if group.empty:
+                ax.axis('off')
+                continue
+            group.plot(
+                x='difficulty',
+                y=['link_aware_length_avg', 'external_length_avg', 'tot_length_avg'],
+                kind='bar',
+                ax=ax,
+                title=f'Path Length by Difficulty - {model}',
+                ylabel='Average Path Length',
+                xlabel='Difficulty Level',
+                legend=True
+            )
+            for _, row in group.iterrows():
+                difficulty = row['difficulty']
+                human_length = row['human_avg_steps_avg']
+                if pd.notna(human_length):
+                    ax.hlines(y=human_length, xmin=all_difficulties.index(difficulty) - 0.4,
+                              xmax=all_difficulties.index(difficulty) + 0.4, colors='red', linestyles='dashed',
+                              label='Human Average Steps' if difficulty == all_difficulties[0] else "")
+
+            handles, labels = ax.get_legend_handles_labels()
+            new_labels = ['Human', 'CoT', 'CoT(KB)', 'ToT']
+            ax.legend(handles, new_labels)
+        plt.tight_layout()
+        plt.show()
+
+
+    def visualize_specific_semantic_space(self,metadata: pd.DataFrame, emb_path: str, article_titles: list[str]):
+        embeddings = torch.load(emb_path, map_location="cpu")
+        articles_df = metadata
+        embeddings_np = embeddings.detach().cpu().numpy()
+        tsne = TSNE(n_components=2, random_state=42, perplexity=5)
+        embeddings_2d = tsne.fit_transform(embeddings_np)
+        fig, ax = plt.subplots(figsize=(12, 8))
+        ax.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], s=10, color='tab:blue')
+        max_labels = 100
+        indices_to_label = [i for i, title in enumerate(metadata['article']) if title in article_titles]
+        for i in indices_to_label:
+            ax.text(
+                embeddings_2d[i, 0] + 0.5,
+                embeddings_2d[i, 1] + 0.5,
+                s=metadata['article'].iloc[i],
+                ha='left', va='bottom', fontsize=8
+            )
+            ax.scatter(embeddings_2d[i, 0], embeddings_2d[i, 1], s=100, color='tab:red')
+            # and link them with lines
+            # the line didnt match the position, because
+        for j in range(len(indices_to_label) - 1):
+            i1 = indices_to_label[j]
+            i2 = indices_to_label[j + 1]
+            # linestyle is not dashed, but solid
+            ax.plot([embeddings_2d[i1, 0], embeddings_2d[i2, 0]], [embeddings_2d[i1, 1], embeddings_2d[i2, 1]],
+                    color='tab:green', linewidth=5, linestyle='solid', alpha=0.5)
+
+        # title show the path
+        ax.set_title('Path: ' + ' -> '.join(article_titles))
+        plt.tight_layout()
+        plt.show()

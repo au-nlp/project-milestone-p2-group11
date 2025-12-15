@@ -1,0 +1,121 @@
+id,start,destination,difficulty,tot_paths,tot_input_tokens,tot_output_tokens
+Brain_Telephone_0,Brain,Telephone,Medium,"[""Brain"", ""Psychology"", ""20th_century"", ""Telephone""]",5870,4869
+Theatre_Zebra_0,Theatre,Zebra,Medium,"[""Theatre"", ""Aristotle"", ""Biology"", ""Animal"", ""Mammal"", ""Zebra""]",21112,13881
+Asteroid_Viking_0,Asteroid,Viking,Medium,,0,0
+Batman_Wood_0,Batman,Wood,Medium,,0,0
+Beer_Sun_0,Beer,Sun,Medium,,0,0
+Batman_Banana_0,Batman,Banana,Medium,,0,0
+Cat_Computer_0,Cat,Computer,Medium,,0,0
+Cat_Microsoft_0,Cat,Microsoft,Medium,"[""Cat"", ""Mammal"", ""20th_century"", ""Computer"", ""Internet"", ""Microsoft""]",31800,24941
+Dog_Telephone_0,Dog,Telephone,Medium,"[""Dog"", ""English_language"", ""Internet"", ""World_Wide_Web"", ""Telephone""]",9907,6951
+Dog_Venus_0,Dog,Venus,Medium,"[""Dog"", ""Scientific_classification"", ""Plant"", ""Light"", ""Solar_System"", ""Venus""]",19292,20184
+Aluminium_chloride_Parrot_0,Aluminium_chloride,Parrot,Medium,,0,0
+Batman_Bible_0,Batman,Bible,Medium,"[""Batman"", ""Superman"", ""Judaism"", ""Bible""]",7000,3788
+England_God_0,England,God,Medium,"[""England"", ""Christianity"", ""Religion"", ""God""]",4957,2601
+Art_Mango_0,Art,Mango,Medium,"[""Art"", ""China"", ""Indonesia"", ""India"", ""Mango""]",10303,8220
+14th_century_Rainbow_0,14th_century,Rainbow,Medium,"[""14th_century"", ""Renaissance"", ""Art"", ""Color"", ""Rainbow""]",9817,6788
+Electricity_God_0,Electricity,God,Medium,"[""Electricity"", ""Physics"", ""Philosophy"", ""Religion"", ""God""]",9998,6408
+Archbishop_of_Canterbury_Vietnam_0,Archbishop_of_Canterbury,Vietnam,Medium,"[""Archbishop_of_Canterbury"", ""Roman_Catholic_Church"", ""Pope_Benedict_XVI"", ""China"", ""Vietnam""]",12888,11358
+Batman_Vitamin_D_0,Batman,Vitamin_D,Medium,"[""Batman"", ""Superman"", ""Sun"", ""Vitamin_D""]",7959,5417
+China_Moon_0,China,Moon,Medium,"[""China"", ""Ancient_Egypt"", ""Egypt"", ""United_States"", ""Moon""]",12145,6723
+Achilles_tendon_Ivory_0,Achilles_tendon,Ivory,Medium,,0,0
+Pyramid_Bean_0,Pyramid,Bean,Hard,"[""Pyramid"", ""California"", ""Vegetable"", ""Bean""]",7618,7701
+Aircraft_Google_0,Aircraft,Google,Hard,"[""Aircraft"", ""United_Kingdom"", ""Computer"", ""World_Wide_Web"", ""Google""]",10103,8319
+Computer_Fruit_0,Computer,Fruit,Hard,"[""Computer"", ""Internet"", ""Information"", ""DNA"", ""Plant"", ""Fruit""]",13826,14270
+Batman_Penguin_0,Batman,Penguin,Hard,"[""Batman"", ""Spring_Heeled_Jack"", ""Earth"", ""Antarctica"", ""Penguin""]",12792,11885
+Calculus_Lemon_0,Calculus,Lemon,Hard,,0,0
+George_W._Bush_Monkey_0,George_W._Bush,Monkey,Hard,"[""George_W._Bush"", ""AIDS"", ""HIV"", ""Africa"", ""Monkey""]",15735,16152
+Batman_Coconut_crab_0,Batman,Coconut_crab,Hard,,0,0
+Batman_Peanut_0,Batman,Peanut,Hard,"[""Batman"", ""Scotland"", ""Agriculture"", ""Soybean"", ""Peanut""]",15798,16940
+Cat_University_0,Cat,University,Hard,"[""Cat"", ""Mammal"", ""Human"", ""Organization"", ""University""]",6581,7012
+God_Apple_0,God,Apple,Hard,"[""God"", ""Nature"", ""Plant"", ""Fruit"", ""Apple""]",13176,11174
+Canada_Pony_0,Canada,Pony,Hard,,0,0
+AIDS_Tour_de_France_0,AIDS,Tour_de_France,Hard,"[""AIDS"", ""France"", ""Paris"", ""Tour_de_France""]",5501,4730
+Cereal_Kurt_Cobain_0,Cereal,Kurt_Cobain,Hard,"[""Cereal"", ""United_States"", ""Seattle,_Washington"", ""Nirvana_(band)"", ""Kurt_Cobain""]",10221,7648
+Christianity_Natalie_Portman_0,Christianity,Natalie_Portman,Hard,"[""Christianity"", ""Middle_East"", ""Hebrew_language"", ""Judaism"", ""Jew"", ""Jerusalem"", ""Natalie_Portman""]",55111,43445
+Colombia_Menthol_0,Colombia,Menthol,Hard,,0,0
+Napoleonic_Wars_Superman_0,Napoleonic_Wars,Superman,Hard,,0,0
+Batman_Wikisource_0,Batman,Wikisource,Hard,,0,0
+Christianity_Coconut_crab_0,Christianity,Coconut_crab,Hard,"[""Christianity"", ""Oceania"", ""Christmas_Island"", ""Coconut_crab""]",4058,4303
+David_Beckham_Frog_0,David_Beckham,Frog,Hard,,0,0
+Geometry_Volleyball_0,Geometry,Volleyball,Hard,"[""Geometry"", ""Mathematics"", ""Statistics"", ""Measurement"", ""United_States"", ""Basketball"", ""Volleyball""]",22171,20506
+Brain_Telephone_1,Brain,Telephone,Medium,"[""Brain"", ""Computer_science"", ""Information"", ""Communication"", ""Telephone""]",9969,9928
+Theatre_Zebra_1,Theatre,Zebra,Medium,"[""Theatre"", ""Music"", ""Culture"", ""Africa"", ""Giraffe"", ""Mammal"", ""Zebra""]",40373,36305
+Asteroid_Viking_1,Asteroid,Viking,Medium,"[""Asteroid"", ""Earth"", ""Norse_mythology"", ""Denmark"", ""Viking""]",13455,16680
+Batman_Wood_1,Batman,Wood,Medium,"[""Batman"", ""Chemistry"", ""Fire"", ""Wood""]",3633,3701
+Beer_Sun_1,Beer,Sun,Medium,"[""Beer"", ""Ethanol"", ""Hydrogen"", ""Sun""]",3837,3972
+Batman_Banana_1,Batman,Banana,Medium,"[""Batman"", ""Chemistry"", ""Biology"", ""Plant"", ""Fruit"", ""Banana""]",19488,15176
+Cat_Computer_1,Cat,Computer,Medium,"[""Cat"", ""Scientific_classification"", ""Evolution"", ""Computer""]",7287,5266
+Cat_Microsoft_1,Cat,Microsoft,Medium,"[""Cat"", ""Mammal"", ""20th_century"", ""Internet"", ""Microsoft""]",16488,12947
+Dog_Telephone_1,Dog,Telephone,Medium,"[""Dog"", ""Mammal"", ""20th_century"", ""Telephone""]",5837,4864
+Dog_Venus_1,Dog,Venus,Medium,"[""Dog"", ""Scientific_classification"", ""Aristotle"", ""Astronomy"", ""Venus""]",10330,8042
+Aluminium_chloride_Parrot_1,Aluminium_chloride,Parrot,Medium,"[""Aluminium_chloride"", ""Chlorine"", ""Color"", ""Bird"", ""Parrot""]",11947,12398
+Batman_Bible_1,Batman,Bible,Medium,"[""Batman"", ""Scotland"", ""Religion"", ""Bible""]",4500,3151
+England_God_1,England,God,Medium,"[""England"", ""Hinduism"", ""God""]",3380,1438
+Art_Mango_1,Art,Mango,Medium,"[""Art"", ""Painting"", ""India"", ""Mango""]",4246,5044
+14th_century_Rainbow_1,14th_century,Rainbow,Medium,"[""14th_century"", ""Renaissance"", ""Aesthetics"", ""Color"", ""Rainbow""]",8986,8133
+Electricity_God_1,Electricity,God,Medium,"[""Electricity"", ""Physics"", ""Philosophy"", ""Religion"", ""God""]",14278,9751
+Archbishop_of_Canterbury_Vietnam_1,Archbishop_of_Canterbury,Vietnam,Medium,"[""Archbishop_of_Canterbury"", ""Roman_Catholic_Church"", ""Asia"", ""Vietnam""]",4360,4126
+Batman_Vitamin_D_1,Batman,Vitamin_D,Medium,"[""Batman"", ""Chemistry"", ""Medicine"", ""Health"", ""Nutrition"", ""Vitamin_D""]",19011,16469
+China_Moon_1,China,Moon,Medium,"[""China"", ""United_States"", ""Apollo_11"", ""Moon""]",6741,2442
+Achilles_tendon_Ivory_1,Achilles_tendon,Ivory,Medium,,0,0
+Pyramid_Bean_1,Pyramid,Bean,Hard,"[""Pyramid"", ""Great_Pyramid_of_Giza"", ""Agriculture"", ""Pea"", ""Bean""]",9320,9745
+Aircraft_Google_1,Aircraft,Google,Hard,"[""Aircraft"", ""United_Kingdom"", ""Computer"", ""World_Wide_Web"", ""Google""]",14426,11686
+Computer_Fruit_1,Computer,Fruit,Hard,,0,0
+Batman_Penguin_1,Batman,Penguin,Hard,,0,0
+Calculus_Lemon_1,Calculus,Lemon,Hard,,0,0
+George_W._Bush_Monkey_1,George_W._Bush,Monkey,Hard,,0,0
+Batman_Coconut_crab_1,Batman,Coconut_crab,Hard,"[""Batman"", ""Chemistry"", ""Biology"", ""Animal"", ""Scientific_classification"", ""Arthropod"", ""Coconut_crab""]",35761,35782
+Batman_Peanut_1,Batman,Peanut,Hard,,0,0
+Cat_University_1,Cat,University,Hard,"[""Cat"", ""Evolution"", ""Science"", ""University""]",8840,10250
+God_Apple_1,God,Apple,Hard,"[""God"", ""Bible"", ""Latin"", ""English_language"", ""American_English"", ""United_States"", ""California"", ""Fruit"", ""Apple""]",115120,100091
+Canada_Pony_1,Canada,Pony,Hard,,0,0
+AIDS_Tour_de_France_1,AIDS,Tour_de_France,Hard,"[""AIDS"", ""Europe"", ""Paris"", ""Tour_de_France""]",9192,4939
+Cereal_Kurt_Cobain_1,Cereal,Kurt_Cobain,Hard,"[""Cereal"", ""United_Kingdom"", ""The_Beatles"", ""Kurt_Cobain""]",9061,8229
+Christianity_Natalie_Portman_1,Christianity,Natalie_Portman,Hard,,0,0
+Colombia_Menthol_1,Colombia,Menthol,Hard,,0,0
+Napoleonic_Wars_Superman_1,Napoleonic_Wars,Superman,Hard,,0,0
+Batman_Wikisource_1,Batman,Wikisource,Hard,,0,0
+Christianity_Coconut_crab_1,Christianity,Coconut_crab,Hard,"[""Christianity"", ""Religion"", ""Peru"", ""Pacific_Ocean"", ""Vanuatu"", ""Fishing"", ""Crustacean"", ""Arthropod"", ""Coconut_crab""]",116434,113696
+David_Beckham_Frog_1,David_Beckham,Frog,Hard,"[""David_Beckham"", ""Chelsea_F.C."", ""Football_(soccer)"", ""Europe"", ""Carnivore"", ""Frog""]",29823,34115
+Geometry_Volleyball_1,Geometry,Volleyball,Hard,"[""Geometry"", ""Physics"", ""Motion_(physics)"", ""Force"", ""Bicycle"", ""Sport"", ""Olympic_Games"", ""Volleyball""]",37089,35517
+Brain_Telephone_2,Brain,Telephone,Medium,"[""Brain"", ""Mind"", ""History_of_science"", ""Telecommunication"", ""Telephone""]",9364,6829
+Theatre_Zebra_2,Theatre,Zebra,Medium,"[""Theatre"", ""United_States"", ""Turkey_(bird)"", ""Chordate"", ""Mammal"", ""Zebra""]",28557,21990
+Asteroid_Viking_2,Asteroid,Viking,Medium,"[""Asteroid"", ""Solar_System"", ""Earth"", ""Norse_mythology"", ""Norway"", ""Viking""]",19479,20362
+Batman_Wood_2,Batman,Wood,Medium,"[""Batman"", ""Superman"", ""Film"", ""Piano"", ""Ebony"", ""Wood""]",26110,33607
+Beer_Sun_2,Beer,Sun,Medium,"[""Beer"", ""Water"", ""Sun""]",4085,3811
+Batman_Banana_2,Batman,Banana,Medium,"[""Batman"", ""Chemistry"", ""Biology"", ""Botany"", ""Fruit"", ""Banana""]",18605,16051
+Cat_Computer_2,Cat,Computer,Medium,"[""Cat"", ""Animal"", ""Human"", ""Technology"", ""Computer""]",9914,5773
+Cat_Microsoft_2,Cat,Microsoft,Medium,,0,0
+Dog_Telephone_2,Dog,Telephone,Medium,[],535,870
+Dog_Venus_2,Dog,Venus,Medium,"[""Dog"", ""Ammonia"", ""Carbon_dioxide"", ""Greenhouse_effect"", ""Venus""]",12405,12741
+Aluminium_chloride_Parrot_2,Aluminium_chloride,Parrot,Medium,"[""Aluminium_chloride"", ""Aluminium"", ""Australia"", ""Biodiversity"", ""Bird"", ""Parrot""]",17838,17579
+Batman_Bible_2,Batman,Bible,Medium,"[""Batman"", ""Superman"", ""Judaism"", ""Bible""]",8331,4353
+England_God_2,England,God,Medium,"[""England"", ""Islam"", ""Religion"", ""God""]",5508,3020
+Art_Mango_2,Art,Mango,Medium,"[""Art"", ""Australia"", ""Asia"", ""India"", ""Mango""]",13061,11466
+14th_century_Rainbow_2,14th_century,Rainbow,Medium,"[""14th_century"", ""Renaissance"", ""Art"", ""Color"", ""Rainbow""]",10109,10261
+Electricity_God_2,Electricity,God,Medium,"[""Electricity"", ""Physics"", ""Philosophy"", ""Religion"", ""God""]",16952,11872
+Archbishop_of_Canterbury_Vietnam_2,Archbishop_of_Canterbury,Vietnam,Medium,"[""Archbishop_of_Canterbury"", ""Roman_Catholic_Church"", ""Asia"", ""Vietnam""]",8163,7169
+Batman_Vitamin_D_2,Batman,Vitamin_D,Medium,,0,0
+China_Moon_2,China,Moon,Medium,"[""China"", ""United_States"", ""Neil_Armstrong"", ""Moon""]",8627,5788
+Achilles_tendon_Ivory_2,Achilles_tendon,Ivory,Medium,,0,0
+Pyramid_Bean_2,Pyramid,Bean,Hard,,0,0
+Aircraft_Google_2,Aircraft,Google,Hard,,0,0
+Computer_Fruit_2,Computer,Fruit,Hard,"[""Computer"", ""Toy"", ""Apple"", ""Fruit""]",4323,4094
+Batman_Penguin_2,Batman,Penguin,Hard,"[""Batman"", ""Superman"", ""Television"", ""New_Zealand"", ""Antarctica"", ""Penguin""]",20970,19104
+Calculus_Lemon_2,Calculus,Lemon,Hard,"[""Calculus"", ""Biology"", ""Botany"", ""Fruit"", ""Citrus"", ""Lemon""]",27329,26242
+George_W._Bush_Monkey_2,George_W._Bush,Monkey,Hard,,0,0
+Batman_Coconut_crab_2,Batman,Coconut_crab,Hard,,0,0
+Batman_Peanut_2,Batman,Peanut,Hard,"[""Batman"", ""Chemistry"", ""Biology"", ""Plant"", ""Seed"", ""Peanut""]",22169,20686
+Cat_University_2,Cat,University,Hard,"[""Cat"", ""Animal"", ""Human"", ""University""]",4555,3811
+God_Apple_2,God,Apple,Hard,,0,0
+Canada_Pony_2,Canada,Pony,Hard,,0,0
+AIDS_Tour_de_France_2,AIDS,Tour_de_France,Hard,"[""AIDS"", ""Belgium"", ""Tour_de_France""]",3407,1984
+Cereal_Kurt_Cobain_2,Cereal,Kurt_Cobain,Hard,"[""Cereal"", ""United_States"", ""American_popular_music"", ""Nirvana_(band)"", ""Kurt_Cobain""]",11616,7139
+Christianity_Natalie_Portman_2,Christianity,Natalie_Portman,Hard,"[""Christianity"", ""Judaism"", ""Jerusalem"", ""Natalie_Portman""]",12028,8071
+Colombia_Menthol_2,Colombia,Menthol,Hard,,0,0
+Napoleonic_Wars_Superman_2,Napoleonic_Wars,Superman,Hard,,0,0
+Batman_Wikisource_2,Batman,Wikisource,Hard,,0,0
+Christianity_Coconut_crab_2,Christianity,Coconut_crab,Hard,"[""Christianity"", ""Philippines"", ""Guam"", ""Invasive_species"", ""Australia"", ""Christmas_Island"", ""Coconut_crab""]",29996,29551
+David_Beckham_Frog_2,David_Beckham,Frog,Hard,"[""David_Beckham"", ""England"", ""United_Kingdom"", ""DNA"", ""Animal"", ""Australian_Green_Tree_Frog"", ""Frog""]",33979,35699
+Geometry_Volleyball_2,Geometry,Volleyball,Hard,"[""Geometry"", ""Mathematics"", ""Game_theory"", ""Economics"", ""United_States"", ""Olympic_Games"", ""Volleyball""]",36604,25339
