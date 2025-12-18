@@ -1,4 +1,4 @@
-## Title: Evaluating Path Reasoning in Large Language Models
+## Title: Comparison Navigation for Large Language Models and Humans
 
 ## Abstract 
 Large language models (LLMs) excel at knowledge retrieval, but their ability to tackle structured navigation tasks like Wikipedia page navigation remains unclear. We evaluate LLMs under four paradigms (prompting strategies), including a novel strategy integrating external knowledge from knowledge graph developed in this study. Benchmarking on Wikispeedia dataset, we compare LLM and human navigation by success rate and other metrics. Our studies reveal that structured reasoning with these methods enables LLMs to achieve human-like or superior navigation performance to different extent. Stepwise analyses of semantic similarity and information gain show that LLMs initially explore broadly before converging to the target page, and specifically, the ToT strategy ensures steps remain semantically relevant and converges decisively on the appropriate category.
@@ -7,7 +7,7 @@ Large language models (LLMs) excel at knowledge retrieval, but their ability to 
 In our study, we provide a systematic comparison between humans and LLMs with modern prompting strategies. In addition to the commonly used strategies, we also develop a novel method enhanced by external graph and semantic knowledge. Furthermore, we explore and discuss the semantic progress and categorical shift of human and LLM-generated paths, enabling us to probe the nature of the reasoning of different agents.
 
 ## Methods
-Experimental Paradigms
+### Experimental Paradigms
 **Simple zero-shot [blind]:** We ask the LLM to generate a path between the given start and destination. We don't include any checks whether the page exists in our dataset or the next page is a valid from the current one.
 
 **Chain of thought [CoT]:** Here we generate the navigation path step by step, and in each prompt we include the possible outgoing links from the current page, making the LLM hallucinate less. Besides this we also use the Auto-CoT sentence: "Let's think step by step", as well as asking the LLM a rating for the next possible steps of which we ask 3. Based on the given rating we select the top 2 pages, and based on the ratings and the length of the paths so far, we decide the best path to go with.
@@ -15,7 +15,8 @@ Experimental Paradigms
 **Chain of thought with external information [CoT(KB)]:** This is similar to the CoT prompt, the difference is that we also include some external information for each of the prompt. These information include the semantic similarity to the destination from each of the next possible pages, centrality difference between the destination and each of the next possible pages based on PageRank and the knowledge graph degrees for each of the next possible pages.
 
 **Tree of thoughts [ToT]:** Similar to CoT, but instead of a single path, we explore a branching set of navigations. At each depth level we expand 2 candidates, thus, if the destination is not found after 4 steps/hops, we will have explored 2**4 candidate navigations. We only include the outgoing links in the prompt besides the current and destination pages.
-Evaluation Metrics
+
+### Evaluation Metrics
 
 **Success Rate:** The success rate is defined by the proportion of LLM-generated paths in which the agent (human or LLM of a specific prompting strategy) successfully reach the target articles from the start page via a valid sequence of links. Invalid Links between two pages are checked.
 
