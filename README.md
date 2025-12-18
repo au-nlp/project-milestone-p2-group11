@@ -1,4 +1,4 @@
-## Title: Comparison Navigation for Large Language Models and Humans
+## Comparison Navigation for Large Language Models and Humans
 
 ## Abstract 
 Large language models (LLMs) excel at knowledge retrieval, but their ability to tackle structured navigation tasks like Wikipedia page navigation remains unclear. We evaluate LLMs under four paradigms (prompting strategies), including a novel strategy integrating external knowledge from knowledge graph developed in this study. Benchmarking on Wikispeedia dataset, we compare LLM and human navigation by success rate and other metrics. Our studies reveal that structured reasoning with these methods enables LLMs to achieve human-like or superior navigation performance to different extent. Stepwise analyses of semantic similarity and information gain show that LLMs initially explore broadly before converging to the target page, and specifically, the ToT strategy ensures steps remain semantically relevant and converges decisively on the appropriate category.
@@ -31,28 +31,30 @@ In our study, we provide a systematic comparison between humans and LLMs with mo
 ![Trading Cards](assets/time_line.png)
 
 ## Organization within the team
-### Milestones:
+### Contributions:
 Mark Hegedus:
-- Zoomed in preprocessing analyses (top k start-destination pair distribution, information gain for the most common pair) [finsihed]
-- Proof of concept implementation of an LLM ToT inference with simple BFS using heuristics rule [finsihed]
-- Introduction of modularity regarding the code organization of the project [ongoing]
-- Implement Microsoft Azure client besides Groq [P3-Milestone]
-- Improve ToT in terms of token usage, and the heuristics rule [P3-Milestone]
+- Zoomed in preprocessing analyses (top k start-destination pair distribution, information gain for the most common pair).
+- Implementation of an LLM ToT inference with simple BFS using heuristics.
+- Introduction of modularity regarding the code organization of the project.
+- Implement DigitalOcean client besides Groq and handle 429 Too many requests restriction.
+- Formatting main.ipynb to formulate a story and explain our code snippets.
 
 Kris Kraack:
-- Preprocessing and analysis for categories (finished and unfinished paths)
-- Analysing categorical shifts along the human player navigation paths (finished paths). [finished]
-- Readme contributions (Abstract, Contributions, and Methods sections) [finished]
-- Analysing categorical shifts along the model navigation paths [P3-Milestone]
-- Semantic analysis (cluster analysis, DRM) [P3-Milestone]
-
+- Preprocessing and analysis for categories (finished and unfinished paths).
+- Categorical shifts analysis and comparison between human and LLM-generated paths. Including preprocessor and visualizer components. 
+- Semantical similarity analysis and comparison between human and LLM-generated paths. Including preprocessor and visualizer components.
+- Readme.md.
+- Report (Results, Conclusion).
+- Report contributions (Abstract, Introduction).
 
 Ruiqi Zhang:
-- Wikispeedia data proprocessing and exploration(Articles, Links, Paths, etc.) [finished]
-- Article semantic visualization using sentence embeddings [finished]
-- Writing the data story in the main.ipynb [finished]
-- Implementing simple zero-shot I/O, few shots I/O (with human paths), and auto-CoT,and Knowledge graph incorporation (if possible) [P3-Milestone]
-- Comparing the metrics between human and LLM [P3-Milestone]
+- Wikispeedia data proprocessing and exploration(Articles, Links, Paths, etc.) 
+- Article semantic visualization using sentence embeddings. 
+- Writing the data story in the main.ipynb.
+- Implementing simple blind navigation, Link-aware CoT, and Knowledge graph incorporation.
+- Comparing the metrics between human and LLMs. 
+- Report (Related Work, Methodology)
+- Report contributions (Abstract, Introduction)
 
 ## Appendix 
 ### Code organization:
